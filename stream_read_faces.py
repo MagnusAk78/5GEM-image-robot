@@ -122,5 +122,5 @@ def Producer(stream_url):
     print 'Producer received ' + str(frames_read / diff_time) + ' frames/second'
 
 if __name__ == '__main__':
-    stream_url = 'http://192.168.1.99:8080/stream/video.mjpeg'
+    stream_url = 'http://127.0.0.1:9090/stream/video.mjpeg'
     Producer(stream_url)
