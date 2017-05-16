@@ -24,7 +24,8 @@ WRITE_IMAGE_INTERVAL = 20
 PI = math.pi
 MINIMUM_ANGLE_MOVEMENT = PI / 20
 IMAGE_WIDTH = 640
-IMAGE_TOTAL_ANGLE = PI / 4
+CENTER_X = IMAGE_WIDTH / 2
+IMAGE_TOTAL_ANGLE = PI / 3
 
 ANGLE_MIN = PI / 2
 ANGLE_MAX = 5 * PI / 4
@@ -44,9 +45,13 @@ logger = custom_logger.setup('5GEM_robot_demonstrator')
 # screen_width          Screen width in pixels
 # angle_screen          Total angle in radians over the screen width (float)
 def convert_square_on_screen_to_angle_in_x(square, screen_width, angle_screen):
-    center_x = square[0] + (square[2] / 2)
-    xDiff = float(float(screen_width / 2) - float(center_x))
-    return float(xDiff * angle_screen) / float(screen_width)
+    image_x = square[0] + (square[2] / 2)
+    xDiff = float(CENTER_X - image_x)
+    if abs(xDiff) < (CENTER_X * 0.05):
+        return 0.0
+    else:
+        return (xDiff / abs(xDiff)) * PI / 20
+    #return float(xDiff * angle_screen) / float(screen_width)
 
 class RobotCommunicator(threading.Thread): 
     def __init__(self, queue): 
@@ -94,8 +99,7 @@ class RobotCommunicator(threading.Thread):
                         break
                     
                     self.currentRadianValue = self.currentRadianValue + \
-                        convert_square_on_screen_to_angle_in_x(face, IMAGE_WIDTH, \
-                        IMAGE_TOTAL_ANGLE)
+                        convert_square_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE)
                         
                     #Make sure the angle is within min/max
                     if(self.currentRadianValue < ANGLE_MIN):

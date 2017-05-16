@@ -10,8 +10,8 @@ FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 # FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
 FACE_DETECTION_COOLDOWN = 0.3
 
-MIN_DISTANCE = 150
-MIN_SIZE_DIFF = 30 # Diagonal of face box
+MIN_DISTANCE = 1.0      # % of diagonal of face box
+MIN_SIZE_DIFF = 0.2     # % of diagonal of face box
 
 NO_FACE_TUPLE = (-1,-1,-1,-1)
 
@@ -22,10 +22,11 @@ def __distance(tuple1, tuple2):
     disty = center1[1] - center2[1]
     return math.sqrt(distx * distx + disty * disty)
     
+def __diagonal(tuple1):
+    return math.sqrt(tuple1[2] * tuple1[2] + tuple1[3] * tuple1[3])
+
 def __size_diff(tuple1, tuple2):
-    distx = tuple1[2] - tuple2[2]
-    disty = tuple1[3] - tuple2[3]
-    return math.sqrt(distx * distx + disty * disty)    
+    return abs(__diagonal(tuple1) - __diagonal(tuple2))
     
 # read_queue            Thread safe fifo queue where the frames are stored, (Poison Pill: 'quit')
 # write_queue           Thread safe fifo queue where the located faces are stored
@@ -76,7 +77,8 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
                 if current_face != NO_FACE_TUPLE:
                     tmp_distance = __distance(current_face, (x,y,w,h))
                     tmp_size_diff = __size_diff(current_face, (x,y,w,h))
-                    if (MIN_DISTANCE > tmp_distance) and (MIN_SIZE_DIFF > tmp_size_diff) and (distance_to_current_face > tmp_distance):
+                    diagonal = __diagonal(current_face)
+                    if (MIN_DISTANCE * diagonal > tmp_distance) and (MIN_SIZE_DIFF * diagonal > tmp_size_diff) and (distance_to_current_face > tmp_distance):
                         distance_to_current_face = tmp_distance
                         current_face = (x,y,w,h)
                         logger.info('setting current face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
