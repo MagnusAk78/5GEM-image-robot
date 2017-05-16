@@ -8,7 +8,7 @@ FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
 
 # FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
-FACE_DETECTION_COOLDOWN = 0.7
+FACE_DETECTION_COOLDOWN = 0.3
 
 MIN_DISTANCE = 150
 MIN_SIZE_DIFF = 30 # Diagonal of face box
@@ -79,6 +79,7 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
                     if (MIN_DISTANCE > tmp_distance) and (MIN_SIZE_DIFF > tmp_size_diff) and (distance_to_current_face > tmp_distance):
                         distance_to_current_face = tmp_distance
                         current_face = (x,y,w,h)
+                        logger.info('setting current face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
                 else:
                     current_face = (x,y,w,h)
                     
