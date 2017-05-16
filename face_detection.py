@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import time
 import sys
+import math
 
 FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
@@ -11,6 +12,13 @@ FACE_DETECTION_COOLDOWN = 2.5
 
 NO_FACE_TUPLE = (-1,-1,-1,-1)
 
+def __distance(tuple1, tuple2):
+    center1 = (tuple1[0] + (tuple1[2] / 2), tuple1[1] + (tuple1[3] / 2))
+    center2 = (tuple2[0] + (tuple2[2] / 2), tuple2[1] + (tuple2[3] / 2))
+    distx = center1[0] - center2[0]
+    disty = center1[1] - center2[1]
+    return math.sqrt(distx * distx + disty * disty)
+    
 # read_queue            Thread safe fifo queue where the frames are stored, (Poison Pill: 'quit')
 # write_queue           Thread safe fifo queue where the located faces are stored
 # logger                Logger
@@ -58,7 +66,7 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
             
             for(x,y,w,h) in faces:                
                 if current_face != NO_FACE_TUPLE:
-                    tmp_distance = abs(x - current_face[0]) + abs(y - current_face[1]) + abs(w - current_face[2]) + abs(h - current_face[3])
+                    tmp_distance = __distance(current_face, (x,y,w,h))
                     if distance_to_current_face > tmp_distance:
                         distance_to_current_face = tmp_distance
                         current_face = (x,y,w,h)
@@ -79,8 +87,7 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
                         current_face[1] + current_face[3]), (255,0,0), 2)
                     cv2.imwrite('face_' + str(total_frames_processed) + '.png', img)
                     last_image_write = now
-            else:
-                if (now - last_face_found_time) > FACE_DETECTION_COOLDOWN:
+            elif (current_face != NO_FACE_TUPLE) and ((now - last_face_found_time) > FACE_DETECTION_COOLDOWN):
                     logger.info('Forgetting face')
                     current_face = NO_FACE_TUPLE
                 
