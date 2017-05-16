@@ -21,8 +21,9 @@ READ_CHUNK_SIZE = 32768
 TOTAL_NR_OF_FRAMES = 500
 WRITE_IMAGE_INTERVAL = 20
 
+RAD_TO_DEG_CONV = 57.2958
 PI = math.pi
-MINIMUM_ANGLE_MOVEMENT = PI / 30
+MINIMUM_ANGLE_MOVEMENT = PI / 36
 IMAGE_WIDTH = 640
 CENTER_X = IMAGE_WIDTH / 2
 IMAGE_TOTAL_ANGLE = PI / 3
@@ -44,12 +45,9 @@ logger = custom_logger.setup('5GEM_robot_demonstrator')
 def convert_square_on_screen_to_angle_in_x(square, screen_width, angle_screen, logger):
     image_x = square[0] + (square[2] / 2)
     xDiff = float(CENTER_X - image_x)
-    if abs(xDiff) < (CENTER_X * 0.05):
-        return 0.0
-    else:
-        diff_angle = xDiff * PI / (IMAGE_WIDTH * 8)
-        logger.info('xDiff: ' + str(xDiff) + ', diff_angle: ' + str(diff_angle))
-        return diff_angle
+    diff_angle = xDiff * PI / (IMAGE_WIDTH * 8)
+    logger.info('xDiff: ' + str(xDiff) + ', diff_angle (deg): ' + str(diff_angle * RAD_TO_DEG_CONV))
+    return diff_angle
     #return float(xDiff * angle_screen) / float(screen_width)
 
 class RobotCommunicator(threading.Thread): 
@@ -97,8 +95,7 @@ class RobotCommunicator(threading.Thread):
                         # if so, exit the loop
                         break
                     
-                    self.currentRadianValue = self.currentRadianValue + \
-                        convert_square_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, logger)
+                    self.currentRadianValue = self.currentRadianValue + convert_square_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, logger)
                         
                     #Make sure the angle is within min/max
                     if(self.currentRadianValue < ANGLE_MIN):
