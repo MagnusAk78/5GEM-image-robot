@@ -22,7 +22,7 @@ TOTAL_NR_OF_FRAMES = 500
 WRITE_IMAGE_INTERVAL = 20
 
 PI = math.pi
-MINIMUM_ANGLE_MOVEMENT = PI / 20
+MINIMUM_ANGLE_MOVEMENT = PI / 30
 IMAGE_WIDTH = 640
 CENTER_X = IMAGE_WIDTH / 2
 IMAGE_TOTAL_ANGLE = PI / 3
@@ -107,7 +107,6 @@ class RobotCommunicator(threading.Thread):
                         self.currentRadianValue = ANGLE_MAX
                         
                     if(abs(self.currentRadianValue - self.lastSentValue) > MINIMUM_ANGLE_MOVEMENT):
-                        print 'Sending value = ' + str(self.currentRadianValue)
                         logger.info('Sending value = ' + str(self.currentRadianValue))
                         conn.send("(" + str(self.currentRadianValue) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
                         dataSent = True
