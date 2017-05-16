@@ -6,6 +6,7 @@ import sys
 FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
 
+# FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
 FACE_DETECTION_COOLDOWN = 2.5
 
 NO_FACE_TUPLE = (-1,-1,-1,-1)

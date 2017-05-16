@@ -18,7 +18,7 @@ import face_detection
 STREAM_URL = 'http://129.16.214.222:9090/stream/video.mjpeg'
 LOG_INTERVAL = 10
 READ_CHUNK_SIZE = 32768
-TOTAL_NR_OF_FRAMES = 100
+TOTAL_NR_OF_FRAMES = 3000
 WRITE_IMAGE_INTERVAL = 20
 
 PI = math.pi
