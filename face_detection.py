@@ -10,8 +10,8 @@ FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 # FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
 FACE_DETECTION_COOLDOWN = 0.3
 
-MIN_DISTANCE = 1.0      # % of diagonal of face box
-MIN_SIZE_DIFF = 0.2     # % of diagonal of face box
+MIN_DISTANCE = 1.5      # % of diagonal of face box
+MIN_SIZE_DIFF = 0.3     # % of diagonal of face box
 
 NO_FACE_TUPLE = (-1,-1,-1,-1)
 
@@ -71,7 +71,7 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
             if((now - last_image_write) > write_image_interval):
                 write_image = True
                 
-            distance_to_current_face = sys.maxint
+            distance_to_current_face = float(sys.maxint)
             
             for(x,y,w,h) in faces:                
                 if current_face != NO_FACE_TUPLE:
@@ -84,6 +84,7 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
                         logger.info('setting current face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
                 else:
                     current_face = (x,y,w,h)
+                    distance_to_current_face = 0.0
                     
                 face_found = True    
                 faces_detected_since_last_log += 1
