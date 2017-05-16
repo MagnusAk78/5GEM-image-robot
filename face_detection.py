@@ -8,7 +8,10 @@ FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
 
 # FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
-FACE_DETECTION_COOLDOWN = 2.5
+FACE_DETECTION_COOLDOWN = 0.7
+
+MIN_DISTANCE = 150
+MIN_SIZE_DIFF = 30 # Diagonal of face box
 
 NO_FACE_TUPLE = (-1,-1,-1,-1)
 
@@ -18,6 +21,11 @@ def __distance(tuple1, tuple2):
     distx = center1[0] - center2[0]
     disty = center1[1] - center2[1]
     return math.sqrt(distx * distx + disty * disty)
+    
+def __size_diff(tuple1, tuple2):
+    distx = tuple1[2] - tuple2[2]
+    disty = tuple1[3] - tuple2[3]
+    return math.sqrt(distx * distx + disty * disty)    
     
 # read_queue            Thread safe fifo queue where the frames are stored, (Poison Pill: 'quit')
 # write_queue           Thread safe fifo queue where the located faces are stored
@@ -67,7 +75,8 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
             for(x,y,w,h) in faces:                
                 if current_face != NO_FACE_TUPLE:
                     tmp_distance = __distance(current_face, (x,y,w,h))
-                    if distance_to_current_face > tmp_distance:
+                    tmp_size_diff = __size_diff(current_face, (x,y,w,h))
+                    if (MIN_DISTANCE > tmp_distance) and (MIN_SIZE_DIFF > tmp_size_diff) and (distance_to_current_face > tmp_distance):
                         distance_to_current_face = tmp_distance
                         current_face = (x,y,w,h)
                 else:
