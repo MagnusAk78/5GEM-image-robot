@@ -104,9 +104,9 @@ class RobotCommunicator(threading.Thread):
                         self.currentRadianValue = ANGLE_MAX
                         
                     if(abs(self.currentRadianValue - self.lastSentValue) > MINIMUM_ANGLE_MOVEMENT):
-                        print 'Sending value = ' + str(value)
-                        logger.info('Sending value = ' + str(value))
-                        conn.send("(" + str(value) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
+                        print 'Sending value = ' + str(self.currentRadianValue)
+                        logger.info('Sending value = ' + str(self.currentRadianValue))
+                        conn.send("(" + str(self.currentRadianValue) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
                         dataSent = True
                         self.lastSentValue = self.currentRadianValue
             #End of while loop
@@ -134,7 +134,6 @@ if __name__ == '__main__':
         
     facePosQueue.put('quit')
     robotCommunicatior.join()
-    stream_reader_queue.put('quit')
     reader.join()
     
     print('Done')

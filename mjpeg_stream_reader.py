@@ -60,6 +60,7 @@ class MjpegStreamReader(threading.Thread):
                 time_last_log = now
                 frames_read_since_last_log = 0
             if(total_frames_read >= self.total_frames and self.total_frames > 0):
+                self.frameQueue.put('quit')
                 break
     
         end_time = time.time()
