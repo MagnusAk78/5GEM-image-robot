@@ -120,9 +120,9 @@ class RobotCommunicator(threading.Thread):
         print 'faces skipped: ' + str(self.facesSkipped)        
 
 if __name__ == '__main__':
-    stream_reader_queue = Queue.Queue()
+    imageQueue = Queue.Queue()
         
-    reader = mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, stream_reader_queue, TOTAL_NR_OF_FRAMES, logger, LOG_INTERVAL)
+    reader = mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, imageQueue, TOTAL_NR_OF_FRAMES, logger, LOG_INTERVAL)
 
     facePosQueue = Queue.Queue()
     robotCommunicatior = RobotCommunicator(facePosQueue)
