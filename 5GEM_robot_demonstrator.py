@@ -62,7 +62,7 @@ class RobotCommunicator(threading.Thread):
     def run(self):
         print("Setup socket")
         try:
-            self.s.bind(('127.0.0.1', PORT))
+            self.s.bind(('', PORT))
         except socket.error as msg:
             print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message: ' + msg[1]
             sys.exit()
