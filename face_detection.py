@@ -10,20 +10,20 @@ FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 # FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
 FACE_DETECTION_COOLDOWN = 0.3
 
-MIN_DISTANCE = 2.0      # % of diagonal of face box
-MIN_SIZE_DIFF = 1     # % of diagonal of face box
+MIN_DISTANCE = 0.2      # % of diagonal of face box
+MIN_SIZE_DIFF = 1.0     # % of diagonal of face box
 
 NO_FACE_TUPLE = (-1,-1,-1,-1)
 
 def __distance(tuple1, tuple2):
     center1 = (tuple1[0] + (tuple1[2] / 2), tuple1[1] + (tuple1[3] / 2))
     center2 = (tuple2[0] + (tuple2[2] / 2), tuple2[1] + (tuple2[3] / 2))
-    distx = center1[0] - center2[0]
-    disty = center1[1] - center2[1]
+    distx = abs(center1[0] - center2[0])
+    disty = abs(center1[1] - center2[1])
     return math.sqrt(distx * distx + disty * disty)
     
-def __diagonal(tuple1):
-    return math.sqrt(tuple1[2] * tuple1[2] + tuple1[3] * tuple1[3])
+def __diagonal(tuple):
+    return math.sqrt(tuple[2] * tuple[2] + tuple[3] * tuple[3])
 
 def __sizeDiff(tuple1, tuple2):
     return abs(__diagonal(tuple1) - __diagonal(tuple2))
@@ -73,7 +73,8 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
                 
             distance_to_current_face = float(sys.maxint)
             
-            for(x,y,w,h) in faces:         
+            logger.info('Looping over ' + str(len(faces)) + ' faces')
+            for(x,y,w,h) in faces:
                 face_found = True       
                 faces_detected_since_last_log += 1
                 total_faces_detected += 1                
@@ -84,12 +85,13 @@ def detect(read_queue, write_queue, logger, log_interval, write_image_interval):
                     if (tmp_distance < (MIN_DISTANCE * diagonal)) and (tmp_size_diff < (MIN_SIZE_DIFF * diagonal)) and (tmp_distance < distance_to_current_face):
                         distance_to_current_face = tmp_distance
                         current_face = (x,y,w,h)
-                        logger.info('setting current face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
+                        logger.info('Setting current face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
                     else:
-                        logger.info('ignoring this face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
+                        logger.info('Ignoring this face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
                 else:
-                    current_face = (x,y,w,h)
                     distance_to_current_face = 0.0
+                    logger.info('New current face, x: ' + str(x) + ', y: ' + str(y) + ', w: ' + str(w) + ', h: ' + str(h))
+                    current_face = (x,y,w,h)
                     
             if face_found:
                 write_queue.put(current_face)
