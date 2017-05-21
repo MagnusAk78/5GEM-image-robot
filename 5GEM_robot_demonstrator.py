@@ -13,25 +13,26 @@ import math
 import custom_logger
 import mjpeg_stream_reader
 import face_detection
+import SocketServer
 
 #Constants
-STREAM_URL = 'http://129.16.214.222:9090/stream/video.mjpeg'
+HOST, PORT = "", 3000
+#STREAM_URL = 'http://129.16.214.222:9090/stream/video.mjpeg'
+STREAM_URL = 'http://82.89.169.171:80/axis-cgi/mjpg/video.cgi?camera=&resolution=320x240'
 LOG_INTERVAL = 10
 READ_CHUNK_SIZE = 32768
-TOTAL_NR_OF_FRAMES = 500
 WRITE_IMAGE_INTERVAL = 20
+KEEP_ALIVE_INTERVAL = 2.0
 
 RAD_TO_DEG_CONV = 57.2958
 PI = math.pi
-MINIMUM_ANGLE_MOVEMENT = PI / 36
+MINIMUM_ANGLE_MOVEMENT = PI / 20
 IMAGE_WIDTH = 640
 CENTER_X = IMAGE_WIDTH / 2
 IMAGE_TOTAL_ANGLE = PI / 3
 
 ANGLE_MIN = PI / 2
 ANGLE_MAX = 5 * PI / 4
-
-PORT = 3000
 
 ROBOT_COOLDOWN_SECONDS = 2
 
@@ -49,90 +50,94 @@ def convert_square_on_screen_to_angle_in_x(square, screen_width, angle_screen, l
     logger.info('xDiff: ' + str(xDiff) + ', diff_angle (deg): ' + str(diff_angle * RAD_TO_DEG_CONV))
     return diff_angle
     #return float(xDiff * angle_screen) / float(screen_width)
+    
+    
+class MyTCPHandler(SocketServer.BaseRequestHandler):
+    """
+    The request handler class for our server.
 
-class RobotCommunicator(threading.Thread): 
-    def __init__(self, queue): 
-        threading.Thread.__init__(self)
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.newFaceQueue = queue
-        self.currentRadianValue = float(PI)
-        self.lastSentValue = self.currentRadianValue
-        self.faces = 0
-        self.facesSkipped = 0
-        
-    def run(self):
-        print("Setup socket")
-        try:
-            self.s.bind(('', PORT))
-        except socket.error as msg:
-            print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message: ' + msg[1]
-            sys.exit()
-            
-        self.s.listen(10)
-        print 'Socket now listening'
+    It is instantiated once per connection to the server, and must
+    override the handle() method to implement communication to the
+    client.
+    """
 
-        #wait to accept a connection - blocking call
-        conn, addr = self.s.accept()
-        print 'Connected with ' + addr[0] + ':' + str(addr[1])
-            
-        print("Socket bind ready!")
+    def handle(self):
+        print('Client connected')
+        imageQueue = Queue.Queue()
+        faceQueue = Queue.Queue()
+        faceDetector = face_detection.FaceDetector(imageQueue, faceQueue, logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
+        faceDetector.start()
+        mjpegStreamReader = mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, imageQueue, logger, LOG_INTERVAL)
+        mjpegStreamReader.start()
+        currentRadianValue = float(PI)
+        lastSentValue = currentRadianValue
+        lastSentTime = time.time()
+        faces = 0
+        facesSkipped = 0
         dataSent = True
-                
-        while(True):
+        connectionOpen = True
+        while connectionOpen:
+            now = time.time()
             if dataSent:
-                data = conn.recv(1024)
-            
-            if(data == "OK" or dataSent == False):
+                self.data = self.request.recv(1024).strip()
+            if self.data == '':
+                connectionOpen = False
+            elif(self.data == "OK" or dataSent == False):
                 dataSent = False
-                if(self.newFaceQueue.empty() == False):
-                    while(self.newFaceQueue.empty() == False):
-                        self.facesSkipped += 1
-                        face = self.newFaceQueue.get()
+                if(faceQueue.empty() == False):
+                    while(faceQueue.empty() == False):
+                        facesSkipped += 1
+                        face = faceQueue.get()
                     
                     # Checks if the current message is the "Poison Pill"
                     if isinstance(face, str) and face == 'quit':
                         # if so, exit the loop
                         break
                     
-                    self.currentRadianValue = self.currentRadianValue + convert_square_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, logger)
+                    currentRadianValue = currentRadianValue + convert_square_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, logger)
                         
                     #Make sure the angle is within min/max
-                    if(self.currentRadianValue < ANGLE_MIN):
-                        self.currentRadianValue = ANGLE_MIN
-                    if(self.currentRadianValue > ANGLE_MAX):
-                        self.currentRadianValue = ANGLE_MAX
+                    if(currentRadianValue < ANGLE_MIN):
+                        currentRadianValue = ANGLE_MIN
+                    if(currentRadianValue > ANGLE_MAX):
+                        currentRadianValue = ANGLE_MAX
                         
-                    if(abs(self.currentRadianValue - self.lastSentValue) > MINIMUM_ANGLE_MOVEMENT):
-                        logger.info('Sending value = ' + str(self.currentRadianValue))
-                        conn.send("(" + str(self.currentRadianValue) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
+                    if(abs(currentRadianValue - lastSentValue) > MINIMUM_ANGLE_MOVEMENT):
+                        logger.info('Sending value = ' + str(currentRadianValue))
+                        self.request.sendall("(" + str(currentRadianValue) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
                         dataSent = True
-                        self.lastSentValue = self.currentRadianValue
+                        lastSentTime = now
+                        lastSentValue = currentRadianValue
+                
+                #If nothing happens we need to send something to keep the connection alive
+                if((now - lastSentTime) > KEEP_ALIVE_INTERVAL):
+                        logger.info('Sending value = ' + str(currentRadianValue) + ', *** keep alive ***')
+                        self.request.sendall("(" + str(currentRadianValue) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
+                        dataSent = True
+                        lastSentTime = now
+                        lastSentValue = currentRadianValue
+                        
             #End of while loop
 
         #Now we die!
         if dataSent:
-            data = conn.recv(1024)
-        conn.send("(3,0.300,-0.100,0.300,0,0,0)" + '\n')
-        conn.close()
-        print 'RobotCommunicator dies'
-        print 'faces skipped: ' + str(self.facesSkipped)        
-
-if __name__ == '__main__':
-    imageQueue = Queue.Queue()
+            self.data = self.request.recv(1024).strip()
+        self.request.sendall("(3,0.300,-0.100,0.300,0,0,0)" + '\n')
         
-    reader = mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, imageQueue, TOTAL_NR_OF_FRAMES, logger, LOG_INTERVAL)
-
-    facePosQueue = Queue.Queue()
-    robotCommunicatior = RobotCommunicator(facePosQueue)
-    
-    robotCommunicatior.start()
-    reader.start()
-    
-    face_detection.detect(imageQueue, facePosQueue, logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
+        print('Client disconnected')
+        print 'faces skipped: ' + str(facesSkipped)
         
-    facePosQueue.put('quit')
-    robotCommunicatior.join()
-    reader.join()
-    
-    print('Done')
+        faceDetector.stopThread()
+        faceDetector.join()
+        print('faceDetector stopped')
+        mjpegStreamReader.stopThread()
+        mjpegStreamReader.join()
+        print('mjpegStreamReader stopped')
+
+if __name__ == "__main__":
+    # Create the server, binding to localhost
+    server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+
+    # Activate the server; this will keep running until you
+    # interrupt the program with Ctrl-C
+    server.serve_forever()
