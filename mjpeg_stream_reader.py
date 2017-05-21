@@ -32,7 +32,8 @@ class MjpegStreamReader(threading.Thread):
         frames_read_since_last_log = 0
         bytes = ''
     
-        print(stream.request.headers)
+        print('Connected to ' + self.stream_url)
+        print('Headers: ' + stream.request.headers)
     
         start_time = time.time()
         print('start_time: ' + str(start_time))
