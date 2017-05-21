@@ -17,8 +17,8 @@ import SocketServer
 
 #Constants
 HOST, PORT = "", 3000
-#STREAM_URL = 'http://129.16.214.222:9090/stream/video.mjpeg'
-STREAM_URL = 'http://82.89.169.171:80/axis-cgi/mjpg/video.cgi?camera=&resolution=320x240'
+STREAM_URL = 'http://129.16.214.222:9090/stream/video.mjpeg'
+#STREAM_URL = 'http://82.89.169.171:80/axis-cgi/mjpg/video.cgi?camera=&resolution=320x240'
 LOG_INTERVAL = 10
 READ_CHUNK_SIZE = 32768
 WRITE_IMAGE_INTERVAL = 20
