@@ -15,19 +15,6 @@ MIN_DISTANCE = 0.2      # % of diagonal of face box
 MIN_SIZE_DIFF = 1.0     # % of diagonal of face box
 
 NO_FACE_TUPLE = (-1,-1,-1,-1)
-
-def __distance(tuple1, tuple2):
-    center1 = (tuple1[0] + (tuple1[2] / 2), tuple1[1] + (tuple1[3] / 2))
-    center2 = (tuple2[0] + (tuple2[2] / 2), tuple2[1] + (tuple2[3] / 2))
-    distx = abs(center1[0] - center2[0])
-    disty = abs(center1[1] - center2[1])
-    return math.sqrt(distx * distx + disty * disty)
-    
-def __diagonal(tuple):
-    return math.sqrt(tuple[2] * tuple[2] + tuple[3] * tuple[3])
-
-def __sizeDiff(tuple1, tuple2):
-    return abs(__diagonal(tuple1) - __diagonal(tuple2))
     
 # frameQueue            Thread safe fifo queue where the frames are stored
 # faceQueue             Thread safe fifo queue where the located faces are stored
@@ -44,6 +31,19 @@ class FaceDetector(threading.Thread):
         self.logInterval = logInterval
         self.writeImageInterval = writeImageInterval
         
+    def __distance(tuple1, tuple2):
+        center1 = (tuple1[0] + (tuple1[2] / 2), tuple1[1] + (tuple1[3] / 2))
+        center2 = (tuple2[0] + (tuple2[2] / 2), tuple2[1] + (tuple2[3] / 2))
+        distx = abs(center1[0] - center2[0])
+        disty = abs(center1[1] - center2[1])
+        return math.sqrt(distx * distx + disty * disty)
+    
+    def __diagonal(tuple):
+        return math.sqrt(tuple[2] * tuple[2] + tuple[3] * tuple[3])
+
+    def __sizeDiff(tuple1, tuple2):
+        return abs(__diagonal(tuple1) - __diagonal(tuple2))
+
     def stopThread(self):
         self.threadRun = False
     
