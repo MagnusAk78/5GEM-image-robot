@@ -40,12 +40,10 @@ logger = custom_logger.setup('5GEM_robot_demonstrator')
 # screen_width          Screen width in pixels
 # angle_screen          Total angle in radians over the screen width (float)
 def convert_face_on_screen_to_angle_in_x(face, screen_width, angle_screen, logger):
-    xDiff = float(CENTER_X - face.centerX)
-    diff_angle = xDiff * PI / (IMAGE_WIDTH * 8)
-    logger.info('xDiff: ' + str(xDiff) + ', diff_angle (deg): ' + str(diff_angle * RAD_TO_DEG_CONV))
-    return diff_angle
-    #return float(xDiff * angle_screen) / float(screen_width)
-    
+    xDiff = float(CENTER_X - face.centerX())
+    diffAngle = xDiff * PI / (IMAGE_WIDTH * 8)
+    logger.info('xDiff: ' + str(xDiff) + ', diffAngle (deg): ' + str(diffAngle * RAD_TO_DEG_CONV))
+    return diffAngle
     
 class MyTCPHandler(SocketServer.BaseRequestHandler):
     """
