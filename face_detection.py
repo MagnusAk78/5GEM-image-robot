@@ -31,18 +31,18 @@ class FaceDetector(threading.Thread):
         self.logInterval = logInterval
         self.writeImageInterval = writeImageInterval
         
-    def __distance(tuple1, tuple2):
+    def __distance(self, tuple1, tuple2):
         center1 = (tuple1[0] + (tuple1[2] / 2), tuple1[1] + (tuple1[3] / 2))
         center2 = (tuple2[0] + (tuple2[2] / 2), tuple2[1] + (tuple2[3] / 2))
         distx = abs(center1[0] - center2[0])
         disty = abs(center1[1] - center2[1])
         return math.sqrt(distx * distx + disty * disty)
     
-    def __diagonal(tuple):
+    def __diagonal(self, tuple):
         return math.sqrt(tuple[2] * tuple[2] + tuple[3] * tuple[3])
 
-    def __sizeDiff(tuple1, tuple2):
-        return abs(__diagonal(tuple1) - __diagonal(tuple2))
+    def __sizeDiff(self, tuple1, tuple2):
+        return abs(self.__diagonal(tuple1) - self.__diagonal(tuple2))
 
     def stopThread(self):
         self.threadRun = False
@@ -89,9 +89,9 @@ class FaceDetector(threading.Thread):
                     faces_detected_since_last_log += 1
                     total_faces_detected += 1                
                     if current_face != NO_FACE_TUPLE:
-                        tmp_distance = __distance(current_face, (x,y,w,h))
-                        tmp_size_diff = __sizeDiff(current_face, (x,y,w,h))
-                        diagonal = __diagonal(current_face)
+                        tmp_distance = self.__distance(current_face, (x,y,w,h))
+                        tmp_size_diff = self.__sizeDiff(current_face, (x,y,w,h))
+                        diagonal = self.__diagonal(current_face)
                         if (tmp_distance < (MIN_DISTANCE * diagonal)) and (tmp_size_diff < (MIN_SIZE_DIFF * diagonal)) and (tmp_distance < distance_to_current_face):
                             distance_to_current_face = tmp_distance
                             current_face = (x,y,w,h)
