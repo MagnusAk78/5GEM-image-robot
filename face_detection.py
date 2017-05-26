@@ -9,12 +9,36 @@ FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
 
 # FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
-FACE_DETECTION_COOLDOWN = 0.3
+FACE_DETECTION_COOLDOWN = 0.5
 
-MIN_DISTANCE = 0.2      # % of diagonal of face box
-MIN_SIZE_DIFF = 1.0     # % of diagonal of face box
+MAX_DISTANCE = 3.0        # % of size of face box
+MAX_SIZE_DIFF = 1.2       # % of size of face box
 
-NO_FACE_TUPLE = (-1,-1,-1,-1)
+class Face(): 
+    def __init__(self, x, y, width, height): 
+        self.x = x
+        self.y = y
+        self.w = width
+        self.h = height
+        
+    def centerX(self):
+        return self.x + self.w / 2
+        
+    def centerY(self):
+        return self.y + self.h / 2        
+        
+    def distanceTo(self, otherFace):
+        distX = abs(self.centerX() - otherFace.centerX())
+        distY = abs(self.centerY() - otherFace.centerY())
+        return math.sqrt(distX * distX + distY * distY)
+    
+    def size(self):
+        return math.sqrt(self.w * self.w + self.h * self.h)
+
+    def sizeDiff(self, otherFace):
+        return abs(self.size() - otherFace.size())
+        
+NO_FACE = Face(-1,-1,-1,-1)
     
 # frameQueue            Thread safe fifo queue where the frames are stored
 # faceQueue             Thread safe fifo queue where the located faces are stored
@@ -31,19 +55,6 @@ class FaceDetector(threading.Thread):
         self.logInterval = logInterval
         self.writeImageInterval = writeImageInterval
         
-    def __distance(self, tuple1, tuple2):
-        center1 = (tuple1[0] + (tuple1[2] / 2), tuple1[1] + (tuple1[3] / 2))
-        center2 = (tuple2[0] + (tuple2[2] / 2), tuple2[1] + (tuple2[3] / 2))
-        distx = abs(center1[0] - center2[0])
-        disty = abs(center1[1] - center2[1])
-        return math.sqrt(distx * distx + disty * disty)
-    
-    def __diagonal(self, tuple):
-        return math.sqrt(tuple[2] * tuple[2] + tuple[3] * tuple[3])
-
-    def __sizeDiff(self, tuple1, tuple2):
-        return abs(self.__diagonal(tuple1) - self.__diagonal(tuple2))
-
     def stopThread(self):
         self.threadRun = False
     
@@ -59,7 +70,7 @@ class FaceDetector(threading.Thread):
         #eye_cascade = cv2.CascadeClassifier(EYE_CASCADE_PATH)
         start_time = time.time()
         time_last_log = start_time
-        current_face = NO_FACE_TUPLE
+        currentFace = NO_FACE
         last_face_found_time = start_time
         
         while self.threadRun: 
@@ -81,41 +92,48 @@ class FaceDetector(threading.Thread):
                 if((now - last_image_write) > self.writeImageInterval):
                     write_image = True
                     
-                distance_to_current_face = float(sys.maxint)
+                currentDistance = float(sys.maxint)
                 
-                self.logger.info('Looping over ' + str(len(faces)) + ' faces')
+                if(len(faces) == 1):
+                    self.logger.info('Looping over 1 face')
+                if(len(faces) > 1):    
+                    self.logger.info('Looping over ' + str(len(faces)) + ' faces')
+                    
+                faces_detected_since_last_log += len(faces)
+                total_faces_detected += len(faces)
+                    
                 for(x,y,w,h) in faces:
-                    face_found = True       
-                    faces_detected_since_last_log += 1
-                    total_faces_detected += 1                
-                    if current_face != NO_FACE_TUPLE:
-                        tmp_distance = self.__distance(current_face, (x,y,w,h))
-                        tmp_size_diff = self.__sizeDiff(current_face, (x,y,w,h))
-                        diagonal = self.__diagonal(current_face)
-                        if (tmp_distance < (MIN_DISTANCE * diagonal)) and (tmp_size_diff < (MIN_SIZE_DIFF * diagonal)) and (tmp_distance < distance_to_current_face):
-                            distance_to_current_face = tmp_distance
-                            current_face = (x,y,w,h)
-                            self.logger.info('Setting current face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
+                    face_found = True
+                    thisFace = Face(x,y,w,h)                
+                    if currentFace != NO_FACE:
+                        thisDistance = currentFace.distanceTo(thisFace)
+                        thisSizeDiff = currentFace.sizeDiff(thisFace)
+                        thisSize = thisFace.size()
+                        if (thisDistance < (MAX_DISTANCE * thisSize)) and (thisSizeDiff < (MAX_SIZE_DIFF * thisSize)) and (thisDistance < currentDistance):
+                            currentDistance = thisDistance
+                            currentFace = thisFace
+                            self.logger.info('Setting current face, dist: ' + str(currentDistance) + ', size diff: ' + str(thisSizeDiff))
                         else:
-                            self.logger.info('Ignoring this face, dist: ' + str(distance_to_current_face) + ', size diff: ' + str(tmp_size_diff))
+                            self.logger.info('Ignoring this face, dist: ' + str(currentDistance) + ', size diff: ' + str(thisSizeDiff))
                     else:
-                        distance_to_current_face = 0.0
+                        currentFace = thisFace
+                        currentDistance = 0.0
                         self.logger.info('New current face, x: ' + str(x) + ', y: ' + str(y) + ', w: ' + str(w) + ', h: ' + str(h))
-                        current_face = (x,y,w,h)
+                        continue
                         
                 if face_found:
-                    self.writeQueue.put(current_face)
+                    self.writeQueue.put(currentFace)
                     last_face_found_time = now
                     if write_image:
                         #Write image
-                        cv2.rectangle(img, (current_face[0], current_face[1]), \
-                            (current_face[0] + current_face[2], \
-                            current_face[1] + current_face[3]), (255,0,0), 2)
+                        cv2.rectangle(img, (currentFace.x, currentFace.y), \
+                            (currentFace.x + currentFace.w, \
+                            currentFace.y + currentFace.h), (255,0,0), 2)
                         cv2.imwrite('face_' + str(total_frames_processed) + '.png', img)
                         last_image_write = now
-                elif (current_face != NO_FACE_TUPLE) and ((now - last_face_found_time) > FACE_DETECTION_COOLDOWN):
+                elif (currentFace != NO_FACE) and ((now - last_face_found_time) > FACE_DETECTION_COOLDOWN):
                         self.logger.info('Forgetting face')
-                        current_face = NO_FACE_TUPLE
+                        currentFace = NO_FACE
                     
                 total_frames_processed += 1
                 frames_processed_since_last_log += 1
