@@ -65,6 +65,7 @@ class FaceDetector(threading.Thread):
         while self.threadRun: 
             face_found = False
             img = self.readQueue.get()
+            now = time.time()
                    
             #Only process images if the queue is empty
             if(self.readQueue.empty()):
@@ -77,7 +78,6 @@ class FaceDetector(threading.Thread):
                 nrOfFaces = 0
                 
                 write_image = False
-                now = time.time()
                 if((now - last_image_write) > self.writeImageInterval):
                     write_image = True
                     
@@ -119,12 +119,11 @@ class FaceDetector(threading.Thread):
                     
                 total_frames_processed += 1
                 frames_processed_since_last_log += 1
-            else:
+            else: #if(!self.readQueue.empty()):
                 #We have skipped an image
                 total_frames_skipped += 1
                 frames_skipped_since_last_log += 1
                 
-            now = time.time()
             diff_time = now - time_last_log
             if(diff_time > self.logInterval):
                 time_last_log = now
@@ -132,7 +131,6 @@ class FaceDetector(threading.Thread):
                     ' frames at ' + str(float(frames_processed_since_last_log) / diff_time) + \
                     ' frames/second. ' + str(frames_skipped_since_last_log) + ' frames were skipped.' \
                     ' faces detected: ' + str(faces_detected_since_last_log))
-                time_last_log = now
                 frames_skipped_since_last_log = 0
                 frames_processed_since_last_log = 0
                 faces_detected_since_last_log = 0
