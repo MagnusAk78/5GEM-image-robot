@@ -39,9 +39,8 @@ logger = custom_logger.setup('5GEM_robot_demonstrator')
 # square                Tuple of square (x, y, width, height)
 # screen_width          Screen width in pixels
 # angle_screen          Total angle in radians over the screen width (float)
-def convert_square_on_screen_to_angle_in_x(square, screen_width, angle_screen, logger):
-    image_x = square[0] + (square[2] / 2)
-    xDiff = float(CENTER_X - image_x)
+def convert_face_on_screen_to_angle_in_x(face, screen_width, angle_screen, logger):
+    xDiff = float(CENTER_X - face.centerX)
     diff_angle = xDiff * PI / (IMAGE_WIDTH * 8)
     logger.info('xDiff: ' + str(xDiff) + ', diff_angle (deg): ' + str(diff_angle * RAD_TO_DEG_CONV))
     return diff_angle
@@ -89,8 +88,11 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                     if isinstance(face, str) and face == 'quit':
                         # if so, exit the loop
                         break
-                    
-                    currentRadianValue = currentRadianValue + convert_square_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, logger)
+                    elif isinstance(face, face_detection.Face):
+                        currentRadianValue = currentRadianValue + convert_face_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, logger)
+                    else:
+                        print("Something is very wrong")
+                        break
                         
                     #Make sure the angle is within min/max
                     if(currentRadianValue < ANGLE_MIN):
