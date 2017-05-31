@@ -5,6 +5,10 @@ import jpgUdpCommon
 import math
 import struct
 import time
+import logging
+import custom_logger
+
+LOG_INTERVAL = 10
 
 TIME_BETWEEN_FRAMES = float(1.0 / jpgUdpCommon.FPS)
 
@@ -24,12 +28,16 @@ print("y res: " + str(cap.get(4)))
 print("FPS: " + str(jpgUdpCommon.FPS))
 print("JPEG_QUALITY: " + str(jpgUdpCommon.JPEG_QUALITY))
 
+statsLogger = custom_logger.setup('sendJpgUdpStats')
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 datagramNumber = 0
 
+lastLogTime = time.time()
+
 while(True):
-    now = time.time()
+    before = time.time()
     # Capture frame-by-frame
     ret, frame = cap.read()
     
@@ -45,15 +53,18 @@ while(True):
             datagramNumber = sendImage(sock, npString, datagramNumber)
         else:
             print('ret == False')
-    
-        diffTime = time.time() - now
+        
+        after = time.time()
+        
+        logDiffTime = after - lastLogTime
+        if logDiffTime > LOG_INTERVAL:
+            statsLogger.info('datagramNumber: ' + str(datagramNumber))
+            print('logging')
+        
+        diffTime = after - before
         sleepTime = TIME_BETWEEN_FRAMES - diffTime
         if sleepTime > 0:
-            print("sleepTime: " + str(sleepTime))
             time.sleep(sleepTime)
-    
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
 
 # When everything done, release the capture
 sock.close()

@@ -46,12 +46,13 @@ NO_FACE = Face(-1,-1,-1,-1)
 # logInterval           How long between every statistic log in seconds
 # writeImageInterval    Minimum time between image written to disk, 0 = no image write
 class FaceDetector(threading.Thread): 
-    def __init__(self, frameQueue, faceQueue, logger, logInterval, writeImageInterval): 
+    def __init__(self, frameQueue, faceQueue, infoLogger, statisticsLogger, logInterval, writeImageInterval): 
         threading.Thread.__init__(self)
         self.threadRun = True
         self.readQueue = frameQueue
         self.writeQueue = faceQueue
-        self.logger = logger
+        self.infoLogger = infoLogger
+        self.statisticsLogger = statisticsLogger
         self.logInterval = logInterval
         self.writeImageInterval = writeImageInterval
         
@@ -83,8 +84,8 @@ class FaceDetector(threading.Thread):
                 # "Processes" the image
                     
                 #Convert to grayscale
-                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+                #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(img, 1.3, 5)
                     
                 nrOfFaces = 0
                 
@@ -95,9 +96,9 @@ class FaceDetector(threading.Thread):
                 currentDistance = float(sys.maxint)
                 
                 if(len(faces) == 1):
-                    self.logger.info('Looping over 1 face')
+                    self.infoLogger.info('Looping over 1 face')
                 if(len(faces) > 1):    
-                    self.logger.info('Looping over ' + str(len(faces)) + ' faces')
+                    self.infoLogger.info('Looping over ' + str(len(faces)) + ' faces')
                     
                 faces_detected_since_last_log += len(faces)
                 total_faces_detected += len(faces)
@@ -112,13 +113,13 @@ class FaceDetector(threading.Thread):
                         if (thisDistance < (MAX_DISTANCE * thisSize)) and (thisSizeDiff < (MAX_SIZE_DIFF * thisSize)) and (thisDistance < currentDistance):
                             currentDistance = thisDistance
                             currentFace = thisFace
-                            self.logger.info('Setting current face, dist: ' + str(currentDistance) + ', size diff: ' + str(thisSizeDiff))
+                            self.infoLogger.info('Setting current face, dist: ' + str(currentDistance) + ', size diff: ' + str(thisSizeDiff))
                         else:
-                            self.logger.info('Ignoring this face, dist: ' + str(currentDistance) + ', size diff: ' + str(thisSizeDiff))
+                            self.infoLogger.info('Ignoring this face, dist: ' + str(currentDistance) + ', size diff: ' + str(thisSizeDiff))
                     else:
                         currentFace = thisFace
                         currentDistance = 0.0
-                        self.logger.info('New current face, x: ' + str(x) + ', y: ' + str(y) + ', w: ' + str(w) + ', h: ' + str(h))
+                        self.infoLogger.info('New current face, x: ' + str(x) + ', y: ' + str(y) + ', w: ' + str(w) + ', h: ' + str(h))
                         continue
                         
                 if face_found:
@@ -145,17 +146,21 @@ class FaceDetector(threading.Thread):
             diff_time = now - time_last_log
             if(diff_time > self.logInterval):
                 time_last_log = now
-                self.logger.info('FaceDetector, processed ' + str(frames_processed_since_last_log) + \
+                self.statisticsLogger.info('FaceDetector, processed ' + str(frames_processed_since_last_log) + \
                     ' frames at ' + str(float(frames_processed_since_last_log) / diff_time) + \
                     ' frames/second. ' + str(frames_skipped_since_last_log) + ' frames were skipped.' \
                     ' faces detected: ' + str(faces_detected_since_last_log))
+                print('FaceDetector, processed ' + str(frames_processed_since_last_log) + \
+                    ' frames at ' + str(float(frames_processed_since_last_log) / diff_time) + \
+                    ' frames/second. ' + str(frames_skipped_since_last_log) + ' frames were skipped.' \
+                    ' faces detected: ' + str(faces_detected_since_last_log))                    
                 frames_skipped_since_last_log = 0
                 frames_processed_since_last_log = 0
                 faces_detected_since_last_log = 0
                 faces_skipped_since_last_log = 0
             
         total_time = time.time() - start_time
-        self.logger.info('FaceDetector done, processed ' + str(total_frames_processed) + \
+        self.statisticsLogger.info('FaceDetector done, processed ' + str(total_frames_processed) + \
             ' frames at ' + str(float(total_frames_processed) / total_time) + \
             ' frames/second. ' + str(total_frames_skipped) + ' frames were skipped. ' \
             ' Total faces detected: ' + str(total_faces_detected))

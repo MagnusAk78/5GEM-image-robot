@@ -45,7 +45,7 @@ def receiveDatagram(sock):
     try:
         recData, address = sock.recvfrom(DATAGRAM_SIZE)
     except socket.timeout:
-        print('timeout')
+        print('socket.timeout')
         return -1, ''
     datagramNumber = struct.unpack('I', recData[:4])[0]
     return datagramNumber, recData[4:]

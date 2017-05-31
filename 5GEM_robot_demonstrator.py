@@ -34,7 +34,8 @@ IMAGE_TOTAL_ANGLE = PI / 3
 ANGLE_MIN = PI / 2
 ANGLE_MAX = 5 * PI / 4
 
-logger = custom_logger.setup('5GEM_robot_demonstrator')
+infoLogger = custom_logger.setup('5GEM_robot_demonstrator')
+statisticsLogger = custom_logger.setup('5GEM_robot_demonstrator')
 
 # square                Tuple of square (x, y, width, height)
 # screen_width          Screen width in pixels
@@ -58,9 +59,9 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         print('Client connected')
         imageQueue = Queue.Queue()
         faceQueue = Queue.Queue()
-        faceDetector = face_detection.FaceDetector(imageQueue, faceQueue, logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
+        faceDetector = face_detection.FaceDetector(imageQueue, faceQueue, infoLogger, statisticsLogger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
         faceDetector.start()
-        jpegUdpReader = jpeg_udp_reader.JpegUdpReader(imageQueue, logger, LOG_INTERVAL)
+        jpegUdpReader = jpeg_udp_reader.JpegUdpReader(imageQueue, infoLogger, statisticsLogger, LOG_INTERVAL)
         jpegUdpReader.start()
         currentRadianValue = float(PI)
         lastSentValue = currentRadianValue
@@ -87,7 +88,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                         # if so, exit the loop
                         break
                     elif isinstance(face, face_detection.Face):
-                        currentRadianValue = currentRadianValue + convert_face_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, logger)
+                        currentRadianValue = currentRadianValue + convert_face_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, infoLogger)
                     else:
                         print("Something is very wrong")
                         break
@@ -99,7 +100,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                         currentRadianValue = ANGLE_MAX
                         
                     if(abs(currentRadianValue - lastSentValue) > MINIMUM_ANGLE_MOVEMENT):
-                        logger.info('Sending value = ' + str(currentRadianValue))
+                        infoLogger.info('Sending value = ' + str(currentRadianValue))
                         self.request.sendall("(" + str(currentRadianValue) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
                         dataSent = True
                         lastSentTime = now
@@ -107,7 +108,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                 
                 #If nothing happens we need to send something to keep the connection alive
                 if((now - lastSentTime) > KEEP_ALIVE_INTERVAL):
-                        logger.info('Sending value = ' + str(currentRadianValue) + ', *** keep alive ***')
+                        infoLogger.info('Sending value = ' + str(currentRadianValue) + ', *** keep alive ***')
                         self.request.sendall("(" + str(currentRadianValue) + ",0.300,-0.100,0.300,0,0,0)" + '\n')
                         dataSent = True
                         lastSentTime = now
