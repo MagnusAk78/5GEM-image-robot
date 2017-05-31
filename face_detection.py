@@ -133,7 +133,7 @@ class FaceDetector(threading.Thread):
                         cv2.imwrite('face_' + str(total_frames_processed) + '.png', img)
                         last_image_write = now
                 elif (currentFace != NO_FACE) and ((now - last_face_found_time) > FACE_DETECTION_COOLDOWN):
-                        self.logger.info('Forgetting face')
+                        self.infoLogger.info('Forgetting face')
                         currentFace = NO_FACE
                     
                 total_frames_processed += 1

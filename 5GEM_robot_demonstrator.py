@@ -34,8 +34,8 @@ IMAGE_TOTAL_ANGLE = PI / 3
 ANGLE_MIN = PI / 2
 ANGLE_MAX = 5 * PI / 4
 
-infoLogger = custom_logger.setup('5GEM_robot_demonstrator')
-statisticsLogger = custom_logger.setup('5GEM_robot_demonstrator')
+infoLogger = custom_logger.setup('5GEM_robot_demonstrator_info')
+statisticsLogger = custom_logger.setup('5GEM_robot_demonstrator_stats')
 
 # square                Tuple of square (x, y, width, height)
 # screen_width          Screen width in pixels

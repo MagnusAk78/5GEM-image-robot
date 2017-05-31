@@ -1,4 +1,4 @@
-import logging
+import custom_logger
 import cv2
 import numpy as np
 import Queue
@@ -20,6 +20,7 @@ class JpegUdpReader(threading.Thread):
         self.statisticsLogger = statisticsLogger
         self.log_interval = log_interval
         self.threadRun = True
+        self.datagramLogger = custom_logger.setup('receiveDatagrams')
         
     def stopThread(self):
         self.threadRun = False
@@ -38,11 +39,11 @@ class JpegUdpReader(threading.Thread):
             expectedDatagramNumber = jpgUdpCommon.nextDatagramNumber(datagramNumber)
             datagramNumber, recData = jpgUdpCommon.receiveDatagram(socket)
             if datagramNumber != expectedDatagramNumber:
-                return '', False
+                return False, datagramNumber, ''
             data += recData
             datagrams += 1
         self.infoLogger.info('image size: ' + str(lenOfData) + ', datagrams: ' + str(datagrams))
-        return data, True        
+        return True, datagramNumber, data
 
     def run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -58,9 +59,10 @@ class JpegUdpReader(threading.Thread):
         start_time = time.time()
         print('start_time: ' + str(start_time))
         time_last_log = start_time
+        lastDatagramLogTime = start_time
         
         while self.threadRun:
-            npString, ret = self.receiveImage(sock)
+            ret, datagramNumber, npString = self.receiveImage(sock)
             if ret:
                 #Unpack
                 nparr = np.fromstring(npString, np.uint8)
@@ -75,6 +77,12 @@ class JpegUdpReader(threading.Thread):
     
             now = time.time()
             diff_time = now - time_last_log
+            
+            diffDatagramLogTime = now - lastDatagramLogTime
+            if diffDatagramLogTime > jpgUdpCommon.DATAGRAM_LOG_INTERVAL:
+                self.datagramLogger.info('datagramNumber: ' + str(datagramNumber))
+                lastDatagramLogTime = now
+                
             if(diff_time > self.log_interval):
                 time_last_log = now
                 self.statisticsLogger.info('JpegUdpReader, received ' + str(frames_read_since_last_log) + ' frames at ' + \

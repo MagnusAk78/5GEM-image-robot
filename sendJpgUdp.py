@@ -8,8 +8,6 @@ import time
 import logging
 import custom_logger
 
-LOG_INTERVAL = 10
-
 TIME_BETWEEN_FRAMES = float(1.0 / jpgUdpCommon.FPS)
 
 cap = cv2.VideoCapture(0)
@@ -28,7 +26,7 @@ print("y res: " + str(cap.get(4)))
 print("FPS: " + str(jpgUdpCommon.FPS))
 print("JPEG_QUALITY: " + str(jpgUdpCommon.JPEG_QUALITY))
 
-statsLogger = custom_logger.setup('sendJpgUdpStats')
+statsLogger = custom_logger.setup('sendDatagrams')
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -57,9 +55,11 @@ while(True):
         after = time.time()
         
         logDiffTime = after - lastLogTime
-        if logDiffTime > LOG_INTERVAL:
+        if logDiffTime > jpgUdpCommon.DATAGRAM_LOG_INTERVAL:
             statsLogger.info('datagramNumber: ' + str(datagramNumber))
+            lastLogTime = after
             print('logging')
+            after = time.time()
         
         diffTime = after - before
         sleepTime = TIME_BETWEEN_FRAMES - diffTime
