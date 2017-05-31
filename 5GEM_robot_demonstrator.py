@@ -11,7 +11,7 @@ import socket
 import os, sys
 import math
 import custom_logger
-import mjpeg_stream_reader
+import jpeg_udp_reader
 import face_detection
 import SocketServer
 
@@ -22,7 +22,7 @@ STREAM_URL = 'http://129.16.214.222:9090/stream/video.mjpeg'
 LOG_INTERVAL = 10
 READ_CHUNK_SIZE = 32768
 WRITE_IMAGE_INTERVAL = 10
-KEEP_ALIVE_INTERVAL = 2.0
+KEEP_ALIVE_INTERVAL = 1.0
 
 RAD_TO_DEG_CONV = 57.2958
 PI = math.pi
@@ -60,8 +60,8 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         faceQueue = Queue.Queue()
         faceDetector = face_detection.FaceDetector(imageQueue, faceQueue, logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
         faceDetector.start()
-        mjpegStreamReader = mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, imageQueue, logger, LOG_INTERVAL)
-        mjpegStreamReader.start()
+        jpegUdpReader = jpeg_udp_reader.JpegUdpReader(imageQueue, logger, LOG_INTERVAL)
+        jpegUdpReader.start()
         currentRadianValue = float(PI)
         lastSentValue = currentRadianValue
         lastSentTime = time.time()
@@ -126,9 +126,9 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         faceDetector.stopThread()
         faceDetector.join()
         print('faceDetector stopped')
-        mjpegStreamReader.stopThread()
-        mjpegStreamReader.join()
-        print('mjpegStreamReader stopped')
+        jpegUdpReader.stopThread()
+        jpegUdpReader.join()
+        print('jpegUdpReader stopped')
 
 if __name__ == "__main__":
     # Create the server, binding to localhost
