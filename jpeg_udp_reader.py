@@ -93,6 +93,7 @@ class JpegUdpReader(threading.Thread):
                     str(frames_lost_since_last_log) + ' were lost.')
                 time_last_log = now
                 frames_read_since_last_log = 0
+                frames_lost_since_last_log = 0
     
         end_time = time.time()
         total_time = end_time - start_time
