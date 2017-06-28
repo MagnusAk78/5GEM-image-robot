@@ -1,53 +1,31 @@
-import custom_logger
 import cv2
 import numpy as np
 import Queue
 import time
 import threading
 import socket
-import jpgUdpCommon
-import struct
+import datagram.data_transfer
 
 # queue             Thread safe fifo queue where the frames are stored
 # logger            Logger
 # log_interval      How long between every statistic log in seconds
 
-class JpegUdpReader(threading.Thread): 
-    def __init__(self, queue, infoLogger, statisticsLogger, log_interval): 
+class ImageReader(threading.Thread): 
+    def __init__(self, address, queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
-        self.frameQueue = queue
-        self.infoLogger = infoLogger
-        self.statisticsLogger = statisticsLogger
+        self.frame_queue = queue
+        self.info_logger = info_logger
+        self.statistics_logger = statistics_logger
         self.log_interval = log_interval
-        self.threadRun = True
-        self.datagramLogger = custom_logger.setup('receiveDatagrams')
+        self.thread_run = True
+        self.datagram_address = address
         
-    def stopThread(self):
-        self.threadRun = False
-        
-    def receiveImage(self, socket):
-        while True:
-            datagramNumber, data = jpgUdpCommon.receiveDatagram(socket)
-            supposedStartMessage = data[:len(jpgUdpCommon.START_MESSAGE)]
-            if supposedStartMessage == jpgUdpCommon.START_MESSAGE:
-                break
-        
-        lenOfData = struct.unpack('I', data[len(jpgUdpCommon.START_MESSAGE):len(jpgUdpCommon.START_MESSAGE)+4])[0]
-        data = data[len(jpgUdpCommon.START_MESSAGE)+4:]
-        datagrams = 1
-        while len(data) < lenOfData:
-            expectedDatagramNumber = jpgUdpCommon.nextDatagramNumber(datagramNumber)
-            datagramNumber, recData = jpgUdpCommon.receiveDatagram(socket)
-            if datagramNumber != expectedDatagramNumber:
-                return False, datagramNumber, ''
-            data += recData
-            datagrams += 1
-        self.infoLogger.info('image size: ' + str(lenOfData) + ', datagrams: ' + str(datagrams))
-        return True, datagramNumber, data
+    def stop_thread(self):
+        self.thread_run = False
 
     def run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(jpgUdpCommon.ADDRESS)
+        sock.bind(self.datagram_address)
 
         sock.settimeout(1.0)
 
@@ -59,16 +37,15 @@ class JpegUdpReader(threading.Thread):
         start_time = time.time()
         print('start_time: ' + str(start_time))
         time_last_log = start_time
-        lastDatagramLogTime = start_time
         
-        while self.threadRun:
-            ret, datagramNumber, npString = self.receiveImage(sock)
+        while self.thread_run:
+            ret, datagram_number, np_string = datagram.data_transfer.receive_dataset(sock)
             if ret:
                 #Unpack
-                nparr = np.fromstring(npString, np.uint8)
+                nparr = np.fromstring(np_string, np.uint8)
                 #img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-                self.frameQueue.put(img)
+                self.frame_queue.put(img)
                 total_frames_read += 1
                 frames_read_since_last_log += 1
             else:
@@ -77,15 +54,10 @@ class JpegUdpReader(threading.Thread):
     
             now = time.time()
             diff_time = now - time_last_log
-            
-            diffDatagramLogTime = now - lastDatagramLogTime
-            if diffDatagramLogTime > jpgUdpCommon.DATAGRAM_LOG_INTERVAL:
-                self.datagramLogger.info('datagramNumber: ' + str(datagramNumber))
-                lastDatagramLogTime = now
                 
             if(diff_time > self.log_interval):
                 time_last_log = now
-                self.statisticsLogger.info('JpegUdpReader, received ' + str(frames_read_since_last_log) + ' frames at ' + \
+                self.statistics_logger.info('JpegUdpReader, received ' + str(frames_read_since_last_log) + ' frames at ' + \
                     str(float(frames_read_since_last_log) / diff_time) + ' frames/second' + '. And ' + \
                     str(frames_lost_since_last_log) + ' were lost.')
                 print('JpegUdpReader, received ' + str(frames_read_since_last_log) + ' frames at ' + \
@@ -97,7 +69,7 @@ class JpegUdpReader(threading.Thread):
     
         end_time = time.time()
         total_time = end_time - start_time
-        self.statisticsLogger.info('JpegUdpReader done, received ' + str(total_frames_read) + \
+        self.statistics_logger.info('JpegUdpReader done, received ' + str(total_frames_read) + \
             ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second' + '. And ' + \
                     str(total_frames_lost) + ' were lost.')
         print('JpegUdpReader done, received ' + str(total_frames_read) + \

@@ -10,24 +10,26 @@ import threading
 # stream_url        Url where the strem is
 # read_chunk_size   How many bytes to read every time
 # queue             Thread safe fifo queue where the frames are stored
-# logger            Logger
+# info_logger       Info logger
+# statistics_logger Statistics logger
 # log_interval      How long between every statistic log in seconds
 
 class MjpegStreamReader(threading.Thread): 
-    def __init__(self, stream_url, read_chunk_size, queue, logger, log_interval): 
+    def __init__(self, stream_url, read_chunk_size, queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
         self.stream_url = stream_url
         self.read_chunk_size = read_chunk_size
-        self.frameQueue = queue
-        self.logger = logger
+        self.frame_queue = queue
+        self.info_logger = info_logger
+        self.statistics_logger = statistics_logger
         self.log_interval = log_interval
         self.threadRun = True
         
-    def stopThread(self):
+    def stop_thread(self):
         self.threadRun = False
 
     def run(self):
-        stream = requests.get(self.stream_url, stream=True)
+        stream = requests.get(self.stream_url, stream = True)
         total_frames_read = 0
         frames_read_since_last_log = 0
         bytes = ''
@@ -46,7 +48,7 @@ class MjpegStreamReader(threading.Thread):
                 jpg = bytes[a:b+2]
                 bytes = bytes[b+2:]
                 img = cv2.imdecode(np.fromstring(jpg, dtype=np.uint8),cv2.IMREAD_COLOR)
-                self.frameQueue.put(img)
+                self.frame_queue.put(img)
                 total_frames_read += 1
                 frames_read_since_last_log += 1
             else:
@@ -57,14 +59,14 @@ class MjpegStreamReader(threading.Thread):
             if(diff_time > self.log_interval):
                 print('logging')
                 time_last_log = now
-                self.logger.info('MjpegStreamReader, received ' + str(frames_read_since_last_log) + ' frames at ' + \
+                self.info_logger.info('MjpegStreamReader, received ' + str(frames_read_since_last_log) + ' frames at ' + \
                     str(float(frames_read_since_last_log) / diff_time) + ' frames/second')
                 time_last_log = now
                 frames_read_since_last_log = 0
     
         end_time = time.time()
         total_time = end_time - start_time
-        self.logger.info('MjpegStreamReader done, received ' + str(total_frames_read) + \
+        self.info_logger.info('MjpegStreamReader done, received ' + str(total_frames_read) + \
             ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second')
         print('MjpegStreamReader done, received ' + str(total_frames_read) + \
             ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second')

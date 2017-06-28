@@ -4,8 +4,9 @@ import time
 import sys
 import math
 import threading
+from processing import face
 
-FACE_CASCADE_PATH = './haarcascades/haarcascade_frontalface_default.xml'
+FACE_CASCADE_PATH = './processing/haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
 
 # FACE_DETECTION_COOLDOWN determines how many seconds a face is 'remembered' after lost
@@ -13,32 +14,6 @@ FACE_DETECTION_COOLDOWN = 0.5
 
 MAX_DISTANCE = 3.0        # % of size of face box
 MAX_SIZE_DIFF = 1.2       # % of size of face box
-
-class Face(): 
-    def __init__(self, x, y, width, height): 
-        self.x = x
-        self.y = y
-        self.w = width
-        self.h = height
-        
-    def centerX(self):
-        return self.x + self.w / 2
-        
-    def centerY(self):
-        return self.y + self.h / 2        
-        
-    def distanceTo(self, otherFace):
-        distX = abs(self.centerX() - otherFace.centerX())
-        distY = abs(self.centerY() - otherFace.centerY())
-        return math.sqrt(distX * distX + distY * distY)
-    
-    def size(self):
-        return math.sqrt(self.w * self.w + self.h * self.h)
-
-    def sizeDiff(self, otherFace):
-        return abs(self.size() - otherFace.size())
-        
-NO_FACE = Face(-1,-1,-1,-1)
     
 # frameQueue            Thread safe fifo queue where the frames are stored
 # faceQueue             Thread safe fifo queue where the located faces are stored
@@ -56,7 +31,7 @@ class FaceDetector(threading.Thread):
         self.logInterval = logInterval
         self.writeImageInterval = writeImageInterval
         
-    def stopThread(self):
+    def stop_thread(self):
         self.threadRun = False
     
     def run(self):
@@ -71,7 +46,7 @@ class FaceDetector(threading.Thread):
         #eye_cascade = cv2.CascadeClassifier(EYE_CASCADE_PATH)
         start_time = time.time()
         time_last_log = start_time
-        currentFace = NO_FACE
+        currentFace = face.NO_FACE
         last_face_found_time = start_time
         
         while self.threadRun: 
@@ -105,8 +80,8 @@ class FaceDetector(threading.Thread):
                     
                 for(x,y,w,h) in faces:
                     face_found = True
-                    thisFace = Face(x,y,w,h)                
-                    if currentFace != NO_FACE:
+                    thisFace = face.Face(x,y,w,h)                
+                    if currentFace != face.NO_FACE:
                         thisDistance = currentFace.distanceTo(thisFace)
                         thisSizeDiff = currentFace.sizeDiff(thisFace)
                         thisSize = thisFace.size()
@@ -132,9 +107,9 @@ class FaceDetector(threading.Thread):
                             currentFace.y + currentFace.h), (255,0,0), 2)
                         cv2.imwrite('face_' + str(total_frames_processed) + '.png', img)
                         last_image_write = now
-                elif (currentFace != NO_FACE) and ((now - last_face_found_time) > FACE_DETECTION_COOLDOWN):
+                elif (currentFace != face.NO_FACE) and ((now - last_face_found_time) > FACE_DETECTION_COOLDOWN):
                         self.infoLogger.info('Forgetting face')
-                        currentFace = NO_FACE
+                        currentFace = face.NO_FACE
                     
                 total_frames_processed += 1
                 frames_processed_since_last_log += 1
