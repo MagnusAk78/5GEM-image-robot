@@ -6,6 +6,8 @@ import math
 import threading
 from processing import face
 
+SHOW_IMAGE_ON_SCREEN = False
+
 FACE_CASCADE_PATH = './processing/haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
 
@@ -98,6 +100,12 @@ class FaceDetector(threading.Thread):
                         continue
                         
                 if face_found:
+
+                    if SHOW_IMAGE_ON_SCREEN:
+                        cv2.rectangle(img, (currentFace.x, currentFace.y), \
+                            (currentFace.x + currentFace.w, \
+                            currentFace.y + currentFace.h), (255,0,0), 2)
+                
                     self.writeQueue.put(currentFace)
                     last_face_found_time = now
                     if write_image:
@@ -110,6 +118,10 @@ class FaceDetector(threading.Thread):
                 elif (currentFace != face.NO_FACE) and ((now - last_face_found_time) > FACE_DETECTION_COOLDOWN):
                         self.infoLogger.info('Forgetting face')
                         currentFace = face.NO_FACE
+                        
+                if SHOW_IMAGE_ON_SCREEN:
+                    cv2.imshow('Image', img)
+                    cv2.waitKey(25)
                     
                 total_frames_processed += 1
                 frames_processed_since_last_log += 1
@@ -133,7 +145,10 @@ class FaceDetector(threading.Thread):
                 frames_processed_since_last_log = 0
                 faces_detected_since_last_log = 0
                 faces_skipped_since_last_log = 0
-            
+        
+        if SHOW_IMAGE_ON_SCREEN:
+            cv2.destroyAllWindows()
+        
         total_time = time.time() - start_time
         self.statisticsLogger.info('FaceDetector done, processed ' + str(total_frames_processed) + \
             ' frames at ' + str(float(total_frames_processed) / total_time) + \

@@ -1,23 +1,16 @@
-import logging
-import threading
-import re
-import cv2
-import urllib
-import requests
-import numpy as np 
 import Queue
 import time
 import socket
-import os, sys
 import math
 import SocketServer
 import helpers.logger
 import datagram.image_reader
 import processing.face_detector
+import processing.face
 
 #Constants
 
-HOST, PORT = "", 3000
+ADDRESS = ("127.0.0.1", 3000)
 
 DATAGRAM_IP = "127.0.0.1"
 DATAGRAM_PORT = 5000
@@ -90,7 +83,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
                     if isinstance(face, str) and face == 'quit':
                         # if so, exit the loop
                         break
-                    elif isinstance(face, face_detection.Face):
+                    elif isinstance(face, processing.face.Face):
                         currentRadianValue = currentRadianValue + convert_face_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE, info_logger)
                     else:
                         print("Something is very wrong")
@@ -135,7 +128,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 
 if __name__ == "__main__":
     # Create the server, binding to localhost
-    server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+    server = SocketServer.TCPServer(ADDRESS, MyTCPHandler)
 
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C

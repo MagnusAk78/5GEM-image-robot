@@ -43,7 +43,6 @@ class ImageReader(threading.Thread):
             if ret:
                 #Unpack
                 nparr = np.fromstring(np_string, np.uint8)
-                #img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
                 self.frame_queue.put(img)
                 total_frames_read += 1
