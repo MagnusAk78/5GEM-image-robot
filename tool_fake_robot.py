@@ -18,6 +18,7 @@ if __name__ == "__main__":
 
     # Create the server, binding to localhost
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(10)
     sock.connect(ADDRESS)
     
     while True:
@@ -26,11 +27,14 @@ if __name__ == "__main__":
             sock.sendall(OK)
             data = sock.recv(1024).strip()
             info_logger.info('received "%s"' % data)
-            print('received "%s"' % data)
+            print 'received "%s"' % data
             time.sleep(0.3)
-        except Error:
-            print('Error' + Error)
+        except socket.error, exc:
+            print "Caught exception socket.error : %s" % exc
+            break
     
     #End While
     print('closing socket')
     sock.close()
+    
+    print('exiting')
