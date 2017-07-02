@@ -7,7 +7,7 @@ import threading
 import Queue
 from processing import face
 
-SHOW_IMAGE_ON_SCREEN = False
+SHOW_IMAGE_ON_SCREEN = True
 ADD_FAKED_DELAY = False
 FAKED_DELAY = 0.3
 

@@ -19,15 +19,20 @@ class ImageReader(threading.Thread):
         self.log_interval = log_interval
         self.thread_run = True
         self.datagram_address = address
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.dataset_queue = Queue.Queue()
+        self.dataset_receiver = datagram.data_transfer.DatasetReceiver(self.sock, self.dataset_queue)
         
     def stop_thread(self):
+        self.dataset_receiver.stop_thread()
         self.thread_run = False
 
     def run(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(self.datagram_address)
+        self.sock.bind(self.datagram_address)
 
-        sock.settimeout(1.0)
+        self.sock.settimeout(1.0)
+        
+        self.dataset_receiver.start()
 
         total_frames_read = 0
         total_frames_lost = 0
@@ -39,17 +44,11 @@ class ImageReader(threading.Thread):
         time_last_log = start_time
         
         while self.thread_run:
-            ret, datagram_number, np_string = datagram.data_transfer.receive_dataset(sock)
-            if ret:
-                #Unpack
-                nparr = np.fromstring(np_string, np.uint8)
-                img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-                self.frame_queue.put(img)
-                total_frames_read += 1
-                frames_read_since_last_log += 1
-            else:
-                total_frames_lost += 1
-                frames_lost_since_last_log += 1
+            np_string = self.dataset_queue.get()
+            #Unpack
+            nparr = np.fromstring(np_string, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+            self.frame_queue.put(img)
     
             now = time.time()
             diff_time = now - time_last_log
