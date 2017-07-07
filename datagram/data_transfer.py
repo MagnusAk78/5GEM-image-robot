@@ -129,7 +129,7 @@ class DatagramReceiver(threading.Thread):
         
         while self.threadRun:
             while self.buffer_datagram_dict.has_key(next_expected_datagram_number):
-                self.datagram_queue.put(buffer_datagram_dict.pop(next_expected_datagram_number))
+                self.datagram_queue.put(self.buffer_datagram_dict.pop(next_expected_datagram_number))
                 next_expected_datagram_number = next_datagram_number(next_expected_datagram_number)
             (received_datagram_number, received_data) = self.__receive_datagram()
             if received_datagram_number != next_expected_datagram_number:
