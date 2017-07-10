@@ -3,6 +3,7 @@ import struct
 import math
 import threading
 import Queue
+import time
 
 START_MESSAGE = 'START'
 
@@ -47,13 +48,14 @@ def __send_datagram(sock, address, data, datagram_number):
     return next_datagram_number(datagram_number)    
     
 class DatasetReceiver(threading.Thread): 
-    def __init__(self, sock, dataset_queue, statistics_logger, log_interval): 
+    def __init__(self, sock, dataset_queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
         self.threadRun = True
         self.dataset_queue = dataset_queue
         self.datagram_queue = Queue.Queue()
         self.datagram_receiver = DatagramReceiver(sock, self.datagram_queue)
         self.statistics_logger = statistics_logger
+        self.info_logger = info_logger
         self.log_interval = log_interval
         
     def stop_thread(self):
@@ -66,30 +68,42 @@ class DatasetReceiver(threading.Thread):
         self.datagram_receiver.start()
         start_found = False
         
-        datagram = self.__get_next_start_datagram()
+        start_time = time.time()
+        self.info_logger.info('DatasetReceiver, start_time: ' + str(start_time))
+        print('DatasetReceiver, start_time: ' + str(start_time))
+        self.statistics_logger.info('Datagrams_received Datagrams_lost Frames_read Frames_lost')
+        time_last_log = start_time        
         
+        total_datagrams_received = 0
+        total_datagrams_lost = 0
         total_frames_read = 0
         total_frames_lost = 0
+        datagrams_received_since_last_log = 0
+        datagrams_lost_since_last_log = 0
         frames_read_since_last_log = 0
         frames_lost_since_last_log = 0
         
-        start_time = time.time()
-        print('start_time: ' + str(start_time))
-        time_last_log = start_time
+        (received_datagrams, lost_datagrams, datagram) = self.__get_next_start_datagram()
+        total_datagrams_received += received_datagrams
+        datagrams_received_since_last_log += received_datagrams
+        total_datagrams_lost += lost_datagrams
+        datagrams_lost_since_last_log += lost_datagrams
         
         while self.threadRun:
             size_of_dataset = struct.unpack('I', datagram[len(START_MESSAGE):len(START_MESSAGE) + 4])[0]
             dataset = datagram[len(START_MESSAGE) + 4:]
-            datagrams = 1
             
             while len(dataset) < size_of_dataset:
                 datagram = self.datagram_queue.get()
                 if datagram != ERROR_DATA:
                     # All is good
                     dataset += datagram
-                    datagrams += 1
+                    total_datagrams_received += 1
+                    datagrams_received_since_last_log += 1
                 else:
                     # We have lost a datagram
+                    total_datagrams_lost += 1
+                    datagrams_lost_since_last_log += 1
                     break
             
             if len(dataset) == size_of_dataset:
@@ -107,35 +121,68 @@ class DatasetReceiver(threading.Thread):
             diff_time = now - time_last_log    
             if(diff_time > self.log_interval):
                 time_last_log = now
-                self.statistics_logger.info('DatasetReceiver, received ' + str(frames_read_since_last_log) + ' frames at ' + \
+                self.info_logger.info('DatasetReceiver, received ' + str(datagrams_received_since_last_log) + ' datagrams at ' + \
+                    str(float(datagrams_received_since_last_log) / diff_time) + ' datagrams/second' + '. And ' + \
+                    str(datagrams_lost_since_last_log) + ' were lost.')
+                print('DatasetReceiver, received ' + str(datagrams_received_since_last_log) + ' datagrams at ' + \
+                    str(float(datagrams_received_since_last_log) / diff_time) + ' datagrams/second' + '. And ' + \
+                    str(datagrams_lost_since_last_log) + ' were lost.')
+                self.info_logger.info('DatasetReceiver, received ' + str(frames_read_since_last_log) + ' frames at ' + \
                     str(float(frames_read_since_last_log) / diff_time) + ' frames/second' + '. And ' + \
                     str(frames_lost_since_last_log) + ' were lost.')
                 print('DatasetReceiver, received ' + str(frames_read_since_last_log) + ' frames at ' + \
                     str(float(frames_read_since_last_log) / diff_time) + ' frames/second' + '. And ' + \
                     str(frames_lost_since_last_log) + ' were lost.')
+                self.statistics_logger.info(str(datagrams_received_since_last_log) + ' ' + str(datagrams_lost_since_last_log) + ' ' + \
+                    str(frames_read_since_last_log) + ' ' + str(frames_lost_since_last_log))
                 time_last_log = now
                 frames_read_since_last_log = 0
                 frames_lost_since_last_log = 0
+                datagrams_received_since_last_log = 0
+                datagrams_lost_since_last_log = 0
             
             # Find next start
-            datagram = self.__get_next_start_datagram()
+            (received_datagrams, lost_datagrams, datagram) = self.__get_next_start_datagram()
+            total_datagrams_received += received_datagrams
+            datagrams_received_since_last_log += received_datagrams
+            total_datagrams_lost += lost_datagrams
+            datagrams_lost_since_last_log += lost_datagrams
+            
             
         end_time = time.time()
         total_time = end_time - start_time
-        self.statistics_logger.info('JpegUdpReader done, received ' + str(total_frames_read) + \
+        self.info_logger.info('DatasetReceiver done, received ' + str(total_datagrams_received) + \
+            ' datagrams at ' + str(float(total_datagrams_received) / total_time) + ' datagrams/second' + '. And ' + \
+                    str(total_datagrams_lost) + ' were lost.')
+        print('DatasetReceiver done, received ' + str(total_datagrams_received) + \
+            ' datagrams at ' + str(float(total_datagrams_received) / total_time) + ' datagrams/second' + '. And ' + \
+                    str(total_datagrams_lost) + ' were lost.')        
+        self.info_logger.info('DatasetReceiver done, received ' + str(total_frames_read) + \
             ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second' + '. And ' + \
                     str(total_frames_lost) + ' were lost.')
-        print('JpegUdpReader done, received ' + str(total_frames_read) + \
+        print('DatasetReceiver done, received ' + str(total_frames_read) + \
             ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second' + '. And ' + \
                     str(total_frames_lost) + ' were lost.')
+                    
+        self.info_logger.info('DatasetReceiver, end_time: ' + str(end_time))
+        print('DatasetReceiver, end_time: ' + str(end_time))                    
                 
     def __get_next_start_datagram(self):
-        while True:
+        found_start_message = False
+        received_datagrams = 0
+        lost_datagrams = 0
+        
+        while found_start_message == False:
             datagram = self.datagram_queue.get()
             if datagram != ERROR_DATA:
+                received_datagrams += 1
                 supposed_start_message = datagram[:len(START_MESSAGE)]
                 if supposed_start_message == START_MESSAGE:
-                    return datagram
+                    found_start_message = True
+            else:
+                lost_datagrams += 1
+        
+        return (received_datagrams, lost_datagrams, datagram)
         
 class DatagramReceiver(threading.Thread): 
 

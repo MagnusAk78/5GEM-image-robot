@@ -7,7 +7,7 @@ import threading
 import Queue
 from processing import face
 
-SHOW_IMAGE_ON_SCREEN = False
+SHOW_IMAGE_ON_SCREEN = True
 ADD_FAKED_DELAY = False
 FAKED_DELAY = 0.3
 
@@ -29,7 +29,7 @@ def transfer_queue(source_queue, target_queue):
 # log_interval           How long between every statistic log in seconds
 # write_image_interval    Minimum time between image written to disk, 0 = no image write
 class FaceDetector(threading.Thread): 
-    def __init__(self, frame_queue, face_queue, info_logger, statistics_logger, log_interval, write_image_interval): 
+    def __init__(self, frame_queue, face_queue, info_logger, log_interval, write_image_interval): 
         threading.Thread.__init__(self)
         self.threadRun = True
         if ADD_FAKED_DELAY:
@@ -40,7 +40,6 @@ class FaceDetector(threading.Thread):
             self.read_queue = frame_queue
         self.writeQueue = face_queue
         self.info_logger = info_logger
-        self.statistics_logger = statistics_logger
         self.log_interval = log_interval
         self.write_image_interval = write_image_interval
         
@@ -88,7 +87,7 @@ class FaceDetector(threading.Thread):
                 nrOfFaces = 0
                 
                 write_image = False
-                if((now - last_image_write) > self.write_image_interval):
+                if((self.write_image_interval > 0) and ((now - last_image_write) > self.write_image_interval)):
                     write_image = True
                     
                 currentDistance = float(sys.maxint)
@@ -154,7 +153,7 @@ class FaceDetector(threading.Thread):
             diff_time = now - time_last_log
             if(diff_time > self.log_interval):
                 time_last_log = now
-                self.statistics_logger.info('FaceDetector, processed ' + str(frames_processed_since_last_log) + \
+                self.info_logger.info('FaceDetector, processed ' + str(frames_processed_since_last_log) + \
                     ' frames at ' + str(float(frames_processed_since_last_log) / diff_time) + \
                     ' frames/second. ' + str(frames_skipped_since_last_log) + ' frames were skipped.' \
                     ' faces detected: ' + str(faces_detected_since_last_log))
@@ -171,7 +170,7 @@ class FaceDetector(threading.Thread):
             cv2.destroyAllWindows()
         
         total_time = time.time() - start_time
-        self.statistics_logger.info('FaceDetector done, processed ' + str(total_frames_processed) + \
+        self.info_logger.info('FaceDetector done, processed ' + str(total_frames_processed) + \
             ' frames at ' + str(float(total_frames_processed) / total_time) + \
             ' frames/second. ' + str(total_frames_skipped) + ' frames were skipped. ' \
             ' Total faces detected: ' + str(total_faces_detected))

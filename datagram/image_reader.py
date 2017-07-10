@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import Queue
-import time
 import threading
 import socket
 import datagram.data_transfer
@@ -14,12 +13,11 @@ class ImageReader(threading.Thread):
     def __init__(self, address, queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
         self.frame_queue = queue
-        self.info_logger = info_logger
         self.thread_run = True
         self.datagram_address = address
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.dataset_queue = Queue.Queue()
-        self.dataset_receiver = datagram.data_transfer.DatasetReceiver(self.sock, self.dataset_queue, statistics_logger, log_interval)
+        self.dataset_receiver = datagram.data_transfer.DatasetReceiver(self.sock, self.dataset_queue, info_logger, statistics_logger, log_interval)
         
     def stop_thread(self):
         self.dataset_receiver.stop_thread()

@@ -7,7 +7,7 @@ import time
 import helpers.logger
 import datagram.data_transfer
 
-DATAGRAM_LOG_INTERVAL = 10
+LOG_INTERVAL = 10
 
 X_RES = 640
 Y_RES = 480
@@ -28,8 +28,6 @@ print("x res: " + str(cap.get(3)))
 print("y res: " + str(cap.get(4)))
 print("FPS: " + str(FPS))
 print("JPEG_QUALITY: " + str(JPEG_QUALITY))
-
-statsLogger = helpers.logger.setup_normal_logger('sendDatagrams')
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -58,8 +56,7 @@ while(True):
         after = time.time()
         
         logDiffTime = after - lastLogTime
-        if logDiffTime > DATAGRAM_LOG_INTERVAL:
-            statsLogger.info('datagramNumber: ' + str(datagramNumber))
+        if logDiffTime > LOG_INTERVAL:
             lastLogTime = after
             print('logging')
             after = time.time()

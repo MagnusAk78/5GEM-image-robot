@@ -17,14 +17,13 @@ import processing.face_detector
 
 #Constants
 
-HOST, PORT = "", 3000
-
+LISTEN_ROBOT_CLIENT_ADDRESS = ("17.0.0.6", 3000)
 
 STREAM_URL = 'http://129.16.144.11:9090/stream/video.mjpeg'
 READ_CHUNK_SIZE = 32768
 
 LOG_INTERVAL = 10
-WRITE_IMAGE_INTERVAL = 10
+WRITE_IMAGE_INTERVAL = 0
 KEEP_ALIVE_INTERVAL = 1.0
 
 RAD_TO_DEG_CONV = 57.2958
@@ -62,7 +61,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
         print('Client connected')
         imageQueue = Queue.Queue()
         faceQueue = Queue.Queue()
-        faceDetector = processing.face_detector.FaceDetector(imageQueue, faceQueue, info_logger, statistics_logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
+        faceDetector = processing.face_detector.FaceDetector(imageQueue, faceQueue, info_logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
         faceDetector.start()
         imageReader = mjpeg.mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, imageQueue, info_logger, statistics_logger, LOG_INTERVAL)
         imageReader.start()
@@ -135,7 +134,10 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 
 if __name__ == "__main__":
     # Create the server, binding to localhost
-    server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+    server = SocketServer.TCPServer(LISTEN_ROBOT_CLIENT_ADDRESS, MyTCPHandler)
+    
+    # Disable Nagle's algorithm
+    server.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)    
 
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
