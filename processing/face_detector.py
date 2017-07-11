@@ -7,10 +7,6 @@ import threading
 import Queue
 from processing import face
 
-SHOW_IMAGE_ON_SCREEN = True
-ADD_FAKED_DELAY = False
-FAKED_DELAY = 0.3
-
 FACE_CASCADE_PATH = './processing/haarcascades/haarcascade_frontalface_default.xml'
 #   EYE_CASCADE_PATH = '../opencv-3.1.0/data/haarcascades/haarcascade_eye.xml'
 
@@ -29,10 +25,13 @@ def transfer_queue(source_queue, target_queue):
 # log_interval           How long between every statistic log in seconds
 # write_image_interval    Minimum time between image written to disk, 0 = no image write
 class FaceDetector(threading.Thread): 
-    def __init__(self, frame_queue, face_queue, info_logger, log_interval, write_image_interval): 
+    def __init__(self, frame_queue, face_queue, show_image_queue, show_image_on_screen, faked_delay, info_logger, log_interval, write_image_interval): 
         threading.Thread.__init__(self)
         self.threadRun = True
-        if ADD_FAKED_DELAY:
+        self.show_image_queue = show_image_queue
+        self.show_image_on_screen = show_image_on_screen
+        self.faked_delay = faked_delay
+        if self.faked_delay > 0:
             self.faked_delay_queue = frame_queue
             self.buffer_queue = Queue.Queue()
             self.read_queue = Queue.Queue()
@@ -64,7 +63,7 @@ class FaceDetector(threading.Thread):
         while self.threadRun: 
             face_found = False
             
-            if ADD_FAKED_DELAY:
+            if self.faked_delay > 0:
                 while self.read_queue.empty():
                     if self.faked_delay_queue.empty() == False:
                         img_now = self.faked_delay_queue.get()
@@ -121,7 +120,7 @@ class FaceDetector(threading.Thread):
                         
                 if face_found:
 
-                    if SHOW_IMAGE_ON_SCREEN:
+                    if self.show_image_on_screen:
                         cv2.rectangle(img, (currentFace.x, currentFace.y), \
                             (currentFace.x + currentFace.w, \
                             currentFace.y + currentFace.h), (255,0,0), 2)
@@ -139,9 +138,8 @@ class FaceDetector(threading.Thread):
                         self.info_logger.info('Forgetting face')
                         currentFace = face.NO_FACE
                         
-                if SHOW_IMAGE_ON_SCREEN:
-                    cv2.imshow('Image', img)
-                    cv2.waitKey(1)
+                if self.show_image_on_screen:
+                    self.show_image_queue.put(img)
                     
                 total_frames_processed += 1
                 frames_processed_since_last_log += 1
@@ -165,9 +163,6 @@ class FaceDetector(threading.Thread):
                 frames_processed_since_last_log = 0
                 faces_detected_since_last_log = 0
                 faces_skipped_since_last_log = 0
-        
-        if SHOW_IMAGE_ON_SCREEN:
-            cv2.destroyAllWindows()
         
         total_time = time.time() - start_time
         self.info_logger.info('FaceDetector done, processed ' + str(total_frames_processed) + \

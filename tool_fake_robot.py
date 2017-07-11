@@ -33,7 +33,7 @@ if __name__ == "__main__":
             data = sock.recv(1024).strip()
             info_logger.info('received "%s"' % data)
             print 'received "%s"' % data
-            time.sleep(0.3)
+            time.sleep(0.2)
         except socket.error, exc:
             print "Caught exception socket.error : %s" % exc
             break

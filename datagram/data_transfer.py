@@ -59,7 +59,6 @@ class DatasetReceiver(threading.Thread):
         self.log_interval = log_interval
         
     def stop_thread(self):
-        self.datagram_receiver.stop_thread()
         self.threadRun = False
         
     def run(self):
@@ -165,7 +164,9 @@ class DatasetReceiver(threading.Thread):
                     str(total_frames_lost) + ' were lost.')
                     
         self.info_logger.info('DatasetReceiver, end_time: ' + str(end_time))
-        print('DatasetReceiver, end_time: ' + str(end_time))                    
+        print('DatasetReceiver, end_time: ' + str(end_time))
+        self.datagram_receiver.stop_thread()
+        self.datagram_receiver.join()
                 
     def __get_next_start_datagram(self):
         found_start_message = False

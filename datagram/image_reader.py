@@ -20,7 +20,6 @@ class ImageReader(threading.Thread):
         self.dataset_receiver = datagram.data_transfer.DatasetReceiver(self.sock, self.dataset_queue, info_logger, statistics_logger, log_interval)
         
     def stop_thread(self):
-        self.dataset_receiver.stop_thread()
         self.thread_run = False
 
     def run(self):
@@ -36,3 +35,7 @@ class ImageReader(threading.Thread):
             nparr = np.fromstring(np_string, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
             self.frame_queue.put(img)
+            
+        # Thread stopped
+        self.dataset_receiver.stop_thread()
+        self.dataset_receiver.join()
