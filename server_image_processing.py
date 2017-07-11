@@ -132,10 +132,6 @@ class MyRobotConnection():
         
         if SHOW_IMAGE_ON_SCREEN:
             cv2.destroyAllWindows()
-            
-        if dataSent:
-            self.data = self.connection.recv(1024).strip()
-        self.connection.sendall("(3,0.300,-0.100,0.300,0,0,0)" + '\n')
         
         self.faceDetector.stop_thread()
         self.faceDetector.join()
@@ -146,26 +142,17 @@ class MyRobotConnection():
         print('Client disconnected')
 
 if __name__ == "__main__":
-    # Create the server, binding to localhost
-    #server = SocketServer.TCPServer(LISTEN_ROBOT_CLIENT_ADDRESS, MyTCPHandler)
-    
-    # Disable Nagle's algorithm
-    #server.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-
-    # Activate the server; this will keep running until you
-    # interrupt the program with Ctrl-C
-    #server.serve_forever()
-    
-    
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Disable Nagle's algorithm
     server_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     server_socket.bind(LISTEN_ROBOT_CLIENT_ADDRESS)
     
-    server_socket.listen(1)
-
-    print "Listening for client . . ."
-    connection, client_address = server_socket.accept()
-    new_robot_connection = MyRobotConnection(connection, client_address)
-    new_robot_connection.handle_connection()
-    connection.close()
+    try:
+        server_socket.listen(1)
+        print "Listening for client . . ."
+        connection, client_address = server_socket.accept()
+        new_robot_connection = MyRobotConnection(connection, client_address)
+        new_robot_connection.handle_connection()
+        connection.close()
+    except KeyboardInterrupt:
+        exit()
