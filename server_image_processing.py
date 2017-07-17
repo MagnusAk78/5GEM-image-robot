@@ -6,6 +6,7 @@ import math
 import cv2
 import helpers.logger
 import datagram.image_reader
+import tcp.image_reader
 import processing.face_detector
 import processing.face
 
@@ -14,11 +15,17 @@ import processing.face
 LOG_INTERVAL = 10
 WRITE_IMAGE_INTERVAL = 0
 KEEP_ALIVE_INTERVAL = 1.0
-SHOW_IMAGE_ON_SCREEN = False
+SHOW_IMAGE_ON_SCREEN = True
 FAKED_DELAY = 0.0
 
-#LISTEN_ROBOT_CLIENT_ADDRESS = ("127.0.0.1", 3000)
-LISTEN_ROBOT_CLIENT_ADDRESS = ("17.0.0.6", 3000)
+LISTEN_ROBOT_CLIENT_ADDRESS = ("127.0.0.1", 3000)
+#LISTEN_ROBOT_CLIENT_ADDRESS = ("17.0.0.6", 3000)
+
+# TCP VERSION
+TCP_IP = "127.0.0.1"
+TCP_PORT = 4000
+READ_BUFFER_SIZE = 16535
+TCP_ADDRESS = (TCP_IP, TCP_PORT)
 
 # UDP VERSION
 DATAGRAM_IP = "127.0.0.1"
@@ -61,8 +68,10 @@ class MyRobotConnection():
         self.face_queue = Queue.Queue()
         self.show_image_queue = Queue.Queue()
         self.faceDetector = processing.face_detector.FaceDetector(self.image_queue, self.face_queue, self.show_image_queue, SHOW_IMAGE_ON_SCREEN, FAKED_DELAY, info_logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
+        # TCP VERSION
+        self.imageReader = tcp.image_reader.ImageReader(TCP_ADDRESS, READ_BUFFER_SIZE, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
         # UDP VERSION
-        self.imageReader = datagram.image_reader.ImageReader(DATAGRAM_ADDRESS, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
+        #self.imageReader = datagram.image_reader.ImageReader(DATAGRAM_ADDRESS, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
         # STREAM VERSION
         #self.imageReader = mjpeg.mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)        
         
