@@ -4,7 +4,7 @@ import threading
 import Queue
 
 LOG_FILE_NAME = "test.csv"
-LOG_TIME = 5.0
+LOG_TIME = 6.0
     
 class LatencyLogging(threading.Thread): 
     def __init__(self): 
