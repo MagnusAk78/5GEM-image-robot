@@ -15,9 +15,12 @@ def send_dataset(socket, dataset):
     socket.sendall(dataToSend)
     
 class DatasetReceiver(threading.Thread): 
-    def __init__(self, connection, read_buffer_size, dataset_queue, info_logger, statistics_logger, log_interval): 
+    def __init__(self, socket, read_buffer_size, dataset_queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
-        self.connection = connection
+        self.setDaemon(True)
+        self.sock = socket
+        self.client_connected = False
+        self.connection = None
         self.read_buffer_size = read_buffer_size
         self.threadRun = True
         self.dataset_queue = dataset_queue
@@ -25,14 +28,18 @@ class DatasetReceiver(threading.Thread):
         self.info_logger = info_logger
         self.log_interval = log_interval
         
+    def wait_for_image_sending_client(self):
+        print 'DatasetReceiver wait_for_image_sending_client'
+        self.sock.listen(1)
+        self.connection, client_address = self.sock.accept()
+        print('DatasetReceiver, client connected: ' + client_address[0] + ':' + str(client_address[1]))        
+        self.client_connected = True
+        
     def stop_thread(self):
         self.threadRun = False
         
-    def run(self):
-        print 'DatasetReceiver run'
-        
-        start_found = False
-        
+    def reveive_data(self):
+        print 'DatasetReceiver reveive_data'
         start_time = time.time()
         self.info_logger.info('DatasetReceiver, start_time: ' + str(start_time))
         print('DatasetReceiver, start_time: ' + str(start_time))
@@ -40,10 +47,10 @@ class DatasetReceiver(threading.Thread):
         time_last_log = start_time
         
         total_frames_read = 0
-        frames_read_since_last_log = 0
-        
+        frames_read_since_last_log = 0    
+    
         bytes = ''
-        while self.threadRun:
+        while self.threadRun and self.client_connected:
             a = bytes.find(START_MESSAGE)
             b = bytes.find(END_MESSAGE)
             if(a!=-1 and b!=-1):
@@ -53,7 +60,12 @@ class DatasetReceiver(threading.Thread):
                 total_frames_read += 1
                 frames_read_since_last_log += 1
             else:
-                bytes += self.connection.recv(self.read_buffer_size)
+                new_bytes = self.connection.recv(self.read_buffer_size)
+                if new_bytes == '':
+                    print('DatasetReceiver, empty bytestring received, connection is dead')
+                    self.client_connected = False
+                    break
+                bytes += new_bytes
             
             now = time.time()
             diff_time = now - time_last_log
@@ -69,15 +81,28 @@ class DatasetReceiver(threading.Thread):
                     
                 time_last_log = now
                 frames_read_since_last_log = 0
-        
+                
         end_time = time.time()
         total_time = end_time - start_time
         self.info_logger.info('DatasetReceiver done, received ' + str(total_frames_read) + \
-            ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second' + '. And ' + \
-                    str(total_frames_lost) + ' were lost.')
+            ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second')
         print('DatasetReceiver done, received ' + str(total_frames_read) + \
-            ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second' + '. And ' + \
-                    str(total_frames_lost) + ' were lost.')
+            ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second')
                     
         self.info_logger.info('DatasetReceiver, end_time: ' + str(end_time))
-        print('DatasetReceiver, end_time: ' + str(end_time))
+        print('DatasetReceiver, end_time: ' + str(end_time))                
+        
+    def run(self):
+        print 'DatasetReceiver run'
+
+        while self.threadRun:
+            if not self.client_connected:
+                self.wait_for_image_sending_client()
+            try:
+                if self.client_connected:
+                    self.reveive_data()
+            except socket.error, exc:
+                print('socket.error: %s' % exc)
+                self.connection.close()
+                self.client_connected = False
+                pass

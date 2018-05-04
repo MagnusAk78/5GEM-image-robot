@@ -9,6 +9,7 @@ LOG_TIME = 6.0
 class LatencyLogging(threading.Thread): 
     def __init__(self): 
         threading.Thread.__init__(self)
+        self.setDaemon(True)
         csv.open
         self.threadRun = True
         self.csv_writer = csv.writer(open(LOG_FILE_NAME, 'w'), delimiter=';', lineterminator='\n')

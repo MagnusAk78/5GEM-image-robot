@@ -81,13 +81,16 @@ def convert_face_on_screen_to_angle_in_y(face, screen_height, angle_screen, logg
     
 class MyRobotConnection():
     
-    def __init__(self, connection, client_address): 
-        self.connection = connection
-        self.client_address = client_address
+    def __init__(self, server_socket): 
+        self.server_socket = server_socket
+        self.connection = None
+        #self.client_address = client_address
         self.image_queue = Queue.Queue()
         self.face_queue = Queue.Queue()
         self.show_image_queue = Queue.Queue()
         self.faceDetector = processing.face_detector.FaceDetector(self.image_queue, self.face_queue, self.show_image_queue, SHOW_IMAGE_ON_SCREEN, FAKED_DELAY, info_logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
+        self.running = True
+        self.robot_connected = False
         # TCP VERSION
         self.imageReader = tcp.image_reader.ImageReader(TCP_ADDRESS, READ_BUFFER_SIZE, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
         # UDP VERSION
@@ -96,11 +99,59 @@ class MyRobotConnection():
         #self.imageReader = mjpeg.mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
         #latency_logger=helpers.LatencyLogger()
         
-    def handle_connection(self):
-        print('Client connected: ' + self.client_address[0] + ':' + str(self.client_address[1]))
+    def wait_for_robot_client(self):
+        try:
+            self.server_socket.listen(1)
+            print "Listening for client . . ."
+            self.connection, client_address = self.server_socket.accept()
+            print('Client connected: ' + client_address[0] + ':' + str(client_address[1]))
+            self.robot_connected = True
+        except socket.error, exc:
+            print('socket.error: %s' % exc)
+            self.connection.close()
+            self.robot_connected = False
+            pass
+        except KeyboardInterrupt:
+            print('KeyboardInterrupt')
+            self.running = False
+        
+    def run(self):
         self.faceDetector.start()
         self.imageReader.start()
+    
+        while self.running:
+            if not self.robot_connected:
+                self.wait_for_robot_client()
+            try:
+                if self.robot_connected:
+                    self.handle_connection()
+            except socket.error, exc:
+                print('socket.error: %s' % exc)
+                self.connection.close()
+                self.robot_connected = False
+                pass
+            except KeyboardInterrupt:
+                print('KeyboardInterrupt')
+                self.running = False
+            
+        #This is the end!
+        print('Closing the server')
         
+        if self.connection != None:
+            self.connection.close()
+        self.server_socket.close()
+        if SHOW_IMAGE_ON_SCREEN:
+            cv2.destroyAllWindows()
+    
+        self.faceDetector.stop_thread()
+        self.faceDetector.join(3.0)
+        print('faceDetector stopped')
+        self.imageReader.stop_thread()
+        self.imageReader.join(3.0)
+        print('imageReader stopped')
+        print('Client disconnected')
+        
+    def handle_connection(self):
         currentRadianValueX = STARTING_ANGLE_X
         currentRadianValueY = STARTING_ANGLE_Y
         lastSentValueX = currentRadianValueX
@@ -109,14 +160,14 @@ class MyRobotConnection():
         faces = 0
         facesSkipped = 0
         dataSent = True
-        connectionOpen = True
         
-        while connectionOpen:
+        while self.running and self.robot_connected:
             now = time.time()
             if dataSent:
                 self.data = self.connection.recv(1024).strip()
             if self.data == '':
-                connectionOpen = False
+                self.connection.close()
+                self.robot_connected = False
             elif(self.data == "OK" or dataSent == False):
                 dataSent = False
                 if(self.face_queue.empty() == False):
@@ -167,33 +218,11 @@ class MyRobotConnection():
                     cv2.waitKey(1)
             #End of while loop
 
-        #Now we die!
-        print('Client disconnecting')
-        print 'faces skipped: ' + str(facesSkipped)        
-        
-        if SHOW_IMAGE_ON_SCREEN:
-            cv2.destroyAllWindows()
-        
-        self.faceDetector.stop_thread()
-        self.faceDetector.join()
-        print('faceDetector stopped')
-        self.imageReader.stop_thread()
-        self.imageReader.join()
-        print('imageReader stopped')
-        print('Client disconnected')
-
 if __name__ == "__main__":
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Disable Nagle's algorithm
     server_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     server_socket.bind(LISTEN_ROBOT_CLIENT_ADDRESS)
     
-    try:
-        server_socket.listen(1)
-        print "Listening for client . . ."
-        connection, client_address = server_socket.accept()
-        new_robot_connection = MyRobotConnection(connection, client_address)
-        new_robot_connection.handle_connection()
-        connection.close()
-    except KeyboardInterrupt:
-        exit()
+    robot_connection = MyRobotConnection(server_socket)
+    robot_connection.run()

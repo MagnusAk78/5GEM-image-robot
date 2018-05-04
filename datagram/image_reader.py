@@ -12,6 +12,7 @@ import datagram.data_transfer
 class ImageReader(threading.Thread): 
     def __init__(self, address, queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
+        self.setDaemon(True)
         self.frame_queue = queue
         self.thread_run = True
         self.datagram_address = address
@@ -38,4 +39,4 @@ class ImageReader(threading.Thread):
             
         # Thread stopped
         self.dataset_receiver.stop_thread()
-        self.dataset_receiver.join()
+        self.dataset_receiver.join(3.0)

@@ -27,6 +27,7 @@ def transfer_queue(source_queue, target_queue):
 class FaceDetector(threading.Thread): 
     def __init__(self, frame_queue, face_queue, show_image_queue, show_image_on_screen, faked_delay, info_logger, log_interval, write_image_interval): 
         threading.Thread.__init__(self)
+        self.setDaemon(True)
         self.threadRun = True
         self.show_image_queue = show_image_queue
         self.show_image_on_screen = show_image_on_screen

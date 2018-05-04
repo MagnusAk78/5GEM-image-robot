@@ -12,6 +12,7 @@ import tcp.data_transfer
 class ImageReader(threading.Thread): 
     def __init__(self, address, read_buffer_size, queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
+        self.setDaemon(True)
         self.frame_queue = queue
         self.thread_run = True
         self.socket_address = address
@@ -29,12 +30,8 @@ class ImageReader(threading.Thread):
 
     def run(self):
         self.sock.bind(self.socket_address)
-        self.sock.listen(1)
-
-        #self.sock.settimeout(1.0)
-        connection, client_address = self.sock.accept()
         
-        dataset_receiver = tcp.data_transfer.DatasetReceiver(connection, self.read_buffer_size, self.dataset_queue, self.info_logger, self.statistics_logger, self.log_interval)
+        dataset_receiver = tcp.data_transfer.DatasetReceiver(self.sock, self.read_buffer_size, self.dataset_queue, self.info_logger, self.statistics_logger, self.log_interval)
         dataset_receiver.start()
         
         while self.thread_run:
@@ -53,4 +50,4 @@ class ImageReader(threading.Thread):
             
         # Thread stopped
         dataset_receiver.stop_thread()
-        dataset_receiver.join()
+        dataset_receiver.join(3.0)

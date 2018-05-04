@@ -50,6 +50,7 @@ def __send_datagram(sock, address, data, datagram_number):
 class DatasetReceiver(threading.Thread): 
     def __init__(self, sock, dataset_queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
+        self.setDaemon(True)
         self.threadRun = True
         self.dataset_queue = dataset_queue
         self.datagram_queue = Queue.Queue()
@@ -166,7 +167,7 @@ class DatasetReceiver(threading.Thread):
         self.info_logger.info('DatasetReceiver, end_time: ' + str(end_time))
         print('DatasetReceiver, end_time: ' + str(end_time))
         self.datagram_receiver.stop_thread()
-        self.datagram_receiver.join()
+        self.datagram_receiver.join(3.0)
                 
     def __get_next_start_datagram(self):
         found_start_message = False
