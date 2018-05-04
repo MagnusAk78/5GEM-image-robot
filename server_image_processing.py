@@ -15,7 +15,7 @@ import processing.face
 LOG_INTERVAL = 10
 WRITE_IMAGE_INTERVAL = 0
 KEEP_ALIVE_INTERVAL = 1.0
-SHOW_IMAGE_ON_SCREEN = True
+SHOW_IMAGE_ON_SCREEN = False
 FAKED_DELAY = 0.0
 
 LISTEN_ROBOT_CLIENT_ADDRESS = ("", 3000)
@@ -38,18 +38,23 @@ READ_CHUNK_SIZE = 32768
 # Robot control and image setup (depends on image sender)
 RAD_TO_DEG_CONV = 57.2958
 DEG_TO_RAD_CONV = 0.01744
-PI = math.pi
-MINIMUM_ANGLE_MOVEMENT = PI / 30
+PI = float(math.pi)
+MINIMUM_ANGLE_MOVEMENT_X = 1 * DEG_TO_RAD_CONV
+MAXIMUM_ANGLE_MOVEMENT_X = 20 * DEG_TO_RAD_CONV
+MINIMUM_ANGLE_MOVEMENT_Y = 1 * DEG_TO_RAD_CONV
+MAXIMUM_ANGLE_MOVEMENT_Y = 20 * DEG_TO_RAD_CONV
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 CENTER_X = IMAGE_WIDTH / 2
 CENTER_Y = IMAGE_HEIGHT / 2
-IMAGE_TOTAL_ANGLE_X = 60 * DEG_TO_RAD_CONV
-IMAGE_TOTAL_ANGLE_Y = 50 * DEG_TO_RAD_CONV
-ANGLE_MIN_X = PI / 2
-ANGLE_MAX_X = 5 * PI / 4
-ANGLE_MIN_Y = 55 * DEG_TO_RAD_CONV
-ANGLE_MAX_Y = 110 * DEG_TO_RAD_CONV
+IMAGE_TOTAL_ANGLE_X = 65 * DEG_TO_RAD_CONV
+IMAGE_TOTAL_ANGLE_Y = 40 * DEG_TO_RAD_CONV
+ANGLE_MIN_X = 90 * DEG_TO_RAD_CONV
+ANGLE_MAX_X = 275 * DEG_TO_RAD_CONV
+ANGLE_MIN_Y = -35 * DEG_TO_RAD_CONV
+ANGLE_MAX_Y = 5 * DEG_TO_RAD_CONV
+STARTING_ANGLE_X =  PI
+STARTING_ANGLE_Y = -15 * DEG_TO_RAD_CONV
 
 # Logging
 info_logger = helpers.logger.setup_normal_logger('5GEM_robot_demonstrator_info')
@@ -61,14 +66,17 @@ statistics_logger = helpers.logger.setup_normal_logger('5GEM_robot_demonstrator_
 def convert_face_on_screen_to_angle_in_x(face, screen_width, angle_screen, logger):
     xDiff = float(CENTER_X - face.centerX())
     diffAngleX = xDiff * angle_screen / IMAGE_WIDTH
-    logger.info('xDiff: ' + str(xDiff) + ', diffAngleX (deg): ' + str(diffAngleX * RAD_TO_DEG_CONV))
+    if diffAngleX > MAXIMUM_ANGLE_MOVEMENT_X:
+        diffAngleX = MAXIMUM_ANGLE_MOVEMENT_X
+    logger.info('xDiff: ' + str(xDiff) + ', diffAngleX (deg): ' + str(diffAngleX * RAD_TO_DEG_CONV) + ' AND diffAngleX (rad): ' + str(diffAngleX))
     return diffAngleX
     
 def convert_face_on_screen_to_angle_in_y(face, screen_height, angle_screen, logger):
     yDiff = float(CENTER_Y - face.centerY())
     diffAngleY = yDiff * angle_screen / IMAGE_HEIGHT
-    logger.info('yDiff: ' + str(yDiff) + ', diffAngleY (deg): ' + \
-                str(diffAngleY * RAD_TO_DEG_CONV) + ' AND diffAngleY (rad): ' + str(diffAngleY))
+    if diffAngleY > MAXIMUM_ANGLE_MOVEMENT_Y:
+        diffAngleY = MAXIMUM_ANGLE_MOVEMENT_Y
+    logger.info('yDiff: ' + str(yDiff) + ', diffAngleY (deg): ' + str(diffAngleY * RAD_TO_DEG_CONV) + ' AND diffAngleY (rad): ' + str(diffAngleY))
     return diffAngleY
     
 class MyRobotConnection():
@@ -93,8 +101,8 @@ class MyRobotConnection():
         self.faceDetector.start()
         self.imageReader.start()
         
-        currentRadianValueX = float(PI)
-        currentRadianValueY = 1.571
+        currentRadianValueX = STARTING_ANGLE_X
+        currentRadianValueY = STARTING_ANGLE_Y
         lastSentValueX = currentRadianValueX
         lastSentValueY = currentRadianValueY
         lastSentTime = time.time()
@@ -134,7 +142,7 @@ class MyRobotConnection():
                     if(currentRadianValueY > ANGLE_MAX_Y):
                         currentRadianValueY = ANGLE_MAX_Y
                         
-                    if((abs(currentRadianValueX - lastSentValueX) or abs(currentRadianValueY - lastSentValueY)) > MINIMUM_ANGLE_MOVEMENT):
+                    if((abs(currentRadianValueX - lastSentValueX)> MINIMUM_ANGLE_MOVEMENT_X or abs(currentRadianValueY - lastSentValueY) > MINIMUM_ANGLE_MOVEMENT_Y)):
                         info_logger.info('Sending value for X = ' + str(currentRadianValueX) + ' AND ' + \
                                         'sending value for Y = ' + str(currentRadianValueY))
                         self.connection.sendall("(" + str(currentRadianValueX) + "," + str(currentRadianValueY) + ")" + '\n')

@@ -42,7 +42,14 @@ class ImageReader(threading.Thread):
             #Unpack
             nparr = np.fromstring(np_string, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-            self.frame_queue.put(img)
+            try:
+                height, width = img.shape[:2]
+            except AttributeError:
+                self.info_logger.info('Image corrupt, AttributeError')
+            except:
+                self.info_logger.info('Image corrupt, some other error')
+            else:
+                self.frame_queue.put(img)
             
         # Thread stopped
         dataset_receiver.stop_thread()
