@@ -37,18 +37,19 @@ READ_CHUNK_SIZE = 32768
 
 # Robot control and image setup (depends on image sender)
 RAD_TO_DEG_CONV = 57.2958
+DEG_TO_RAD_CONV = 0.01744
 PI = math.pi
 MINIMUM_ANGLE_MOVEMENT = PI / 30
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 CENTER_X = IMAGE_WIDTH / 2
 CENTER_Y = IMAGE_HEIGHT / 2
-IMAGE_TOTAL_ANGLE_X = PI / 3
-IMAGE_TOTAL_ANGLE_Y = PI / 4
+IMAGE_TOTAL_ANGLE_X = 60 * DEG_TO_RAD_CONV
+IMAGE_TOTAL_ANGLE_Y = 50 * DEG_TO_RAD_CONV
 ANGLE_MIN_X = PI / 2
 ANGLE_MAX_X = 5 * PI / 4
-ANGLE_MIN_Y = 0.872 #This limit is equal to 50deg
-ANGLE_MAX_Y = 2.09 #This limit is equal to 120deg
+ANGLE_MIN_Y = 55 * DEG_TO_RAD_CONV
+ANGLE_MAX_Y = 110 * DEG_TO_RAD_CONV
 
 # Logging
 info_logger = helpers.logger.setup_normal_logger('5GEM_robot_demonstrator_info')
