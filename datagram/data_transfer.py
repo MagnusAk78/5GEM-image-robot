@@ -17,6 +17,7 @@ LARGE_NUMBER = 0xFFFFFFFF - SMALL_NUMBER
 
 MAX_BUFFER = 10
 ERROR_DATA = -1
+NO_DATA = -2
 
 def next_datagram_number(datagram_number):
     datagram_number += 1
@@ -188,19 +189,29 @@ class DatasetReceiver(threading.Thread):
         
 class DatagramReceiver(threading.Thread): 
 
-    def __init__(self, sock, datagram_queue): 
+    def __init__(self, datagram_address, datagram_queue): 
         threading.Thread.__init__(self)
-        self.sock = sock
+        self.setDaemon(True)
+        self.datagram_address = datagram_address
+        self.socket_connected = False
         self.threadRun = True
         self.datagram_queue = datagram_queue
         self.buffer_datagram_dict = {}
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.settimeout(3.0)
+        
+    def __connect_socket(self):
+        self.sock.bind(self.datagram_address)
+        self.socket_connected = True
         
     def __receive_datagram(self):
         try:
             received_data, address = self.sock.recvfrom(DATAGRAM_SIZE)
         except socket.timeout:
             print('socket.timeout')
-            return -1, ''
+            return NO_DATA, ''
+            self.socket_connected = False
+            next_expected_datagram_number = 0
         received_datagram_number = struct.unpack('I', received_data[:4])[0]
         return (received_datagram_number, received_data[4:])
         
@@ -210,20 +221,25 @@ class DatagramReceiver(threading.Thread):
     def run(self):
         print 'DatagramReceiver run'
         
-        (received_datagram_number, received_data) = self.__receive_datagram()
-        self.datagram_queue.put(received_data)
-        next_expected_datagram_number = next_datagram_number(received_datagram_number)
+        self.__connect_socket()
         
+        (received_datagram_number, received_data) = self.__receive_datagram()
+        if(received_data != NO_DATA):
+            self.datagram_queue.put(received_data)
+            next_expected_datagram_number = next_datagram_number(received_datagram_number)
         while self.threadRun:
+            if not self.socket_connected:
+                self.__connect_socket()
             while self.buffer_datagram_dict.has_key(next_expected_datagram_number):
                 self.datagram_queue.put(self.buffer_datagram_dict.pop(next_expected_datagram_number))
                 next_expected_datagram_number = next_datagram_number(next_expected_datagram_number)
             (received_datagram_number, received_data) = self.__receive_datagram()
-            if received_datagram_number != next_expected_datagram_number:
-                self.buffer_datagram_dict[received_datagram_number] = received_data
-                if len(self.buffer_datagram_dict) > MAX_BUFFER:
-                    self.datagram_queue.put(ERROR_DATA)
-                    next_expected_datagram_number = next_datagram_number(next_expected_datagram_number)
-            else:
-                self.datagram_queue.put(received_data)
-                next_expected_datagram_number = next_datagram_number(received_datagram_number)
+            if received_datagram_number != NO_DATA:
+                if received_datagram_number != next_expected_datagram_number:
+                    self.buffer_datagram_dict[received_datagram_number] = received_data
+                    if len(self.buffer_datagram_dict) > MAX_BUFFER:
+                        self.datagram_queue.put(ERROR_DATA)
+                        next_expected_datagram_number = next_datagram_number(next_expected_datagram_number)
+                else:
+                    self.datagram_queue.put(received_data)
+                    next_expected_datagram_number = next_datagram_number(received_datagram_number)
