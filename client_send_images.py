@@ -51,8 +51,6 @@ else:
 print("FPS: " + str(FPS))
 print("JPEG_QUALITY: " + str(JPEG_QUALITY))    
 
-
-
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(TCP_ADDRESS)
 
@@ -66,9 +64,9 @@ def handle_image(image):
     ret, buf = cv2.imencode('.jpeg', gray, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
 
     if ret == True:
-        npString = buf.tostring()
+        image_data = buf.tostring()
         #TCP
-        tcp.data_transfer.send_dataset(sock, npString)
+        tcp.data_transfer.send_image_data(sock, timeit.default_timer(), image_data)
     else:
         print("cv2.imencode('.jpeg', gray, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]) failed")
         print("")

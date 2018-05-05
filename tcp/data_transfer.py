@@ -5,15 +5,10 @@ import threading
 import Queue
 import timeit
 
-START_MESSAGE = 'START'
-END_MESSAGE = 'END'
-
-def send_dataset(socket, dataset):
-    dataToSend = START_MESSAGE
-    dataToSend += dataset
-    dataToSend += END_MESSAGE
+def send_image_data(socket, round_trip_time, image_data):
+    dataToSend = struct.pack('f', round_trip_time) + struct.pack('i', len(image_data)) + image_data
     socket.sendall(dataToSend)
-    
+        
 class DatasetReceiver(threading.Thread): 
     def __init__(self, socket, read_buffer_size, dataset_queue, info_logger, statistics_logger, log_interval): 
         threading.Thread.__init__(self)
@@ -38,6 +33,13 @@ class DatasetReceiver(threading.Thread):
     def stop_thread(self):
         self.threadRun = False
         
+    def get_data(self):
+        new_bytes = self.connection.recv(self.read_buffer_size)
+        if new_bytes == '':
+            print('DatasetReceiver, empty bytestring received, connection is dead')
+            self.client_connected = False
+        return new_bytes
+        
     def reveive_data(self):
         print 'DatasetReceiver reveive_data'
         start_time = timeit.default_timer()
@@ -50,22 +52,24 @@ class DatasetReceiver(threading.Thread):
         frames_read_since_last_log = 0    
     
         bytes = ''
+        length_of_next_image = 0
         while self.threadRun and self.client_connected:
-            a = bytes.find(START_MESSAGE)
-            b = bytes.find(END_MESSAGE)
-            if(a!=-1 and b!=-1):
-                dataset = bytes[a + len(START_MESSAGE):b + len(END_MESSAGE)]
-                bytes = bytes[b+len(END_MESSAGE):]
-                self.dataset_queue.put(dataset)
-                total_frames_read += 1
-                frames_read_since_last_log += 1
-            else:
-                new_bytes = self.connection.recv(self.read_buffer_size)
-                if new_bytes == '':
-                    print('DatasetReceiver, empty bytestring received, connection is dead')
-                    self.client_connected = False
+            while len(bytes) <= length_of_next_image + struct.calcsize('fi'):
+                bytes += self.get_data()
+                if self.client_connected == False:
                     break
-                bytes += new_bytes
+            rtt = struct.unpack('f', bytes[0:4])[0]
+            length_of_next_image = struct.unpack('i', bytes[4:8])[0]
+            bytes = bytes[8:]
+            while(len(bytes) <= length_of_next_image):
+                bytes += self.get_data()
+                if self.client_connected == False:
+                    break
+            image_data = bytes[:length_of_next_image]
+            bytes = bytes[length_of_next_image:]
+            self.dataset_queue.put(image_data)
+            total_frames_read += 1
+            frames_read_since_last_log += 1
             
             now = timeit.default_timer()
             diff_time = now - time_last_log
