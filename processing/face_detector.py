@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import timeit
 import time
 import sys
 import math
@@ -56,7 +57,7 @@ class FaceDetector(threading.Thread):
         frames_skipped_since_last_log = 0
         face_cascade = cv2.CascadeClassifier(FACE_CASCADE_PATH)
         #eye_cascade = cv2.CascadeClassifier(EYE_CASCADE_PATH)
-        start_time = time.time()
+        start_time = timeit.default_timer()
         time_last_log = start_time
         currentFace = face.NO_FACE
         last_face_found_time = start_time
@@ -74,7 +75,7 @@ class FaceDetector(threading.Thread):
                         time.sleep(0.005)
             
             img = self.read_queue.get()
-            now = time.time()
+            now = timeit.default_timer()
                    
             #Only process images if the queue is empty
             if(self.read_queue.empty()):
@@ -165,7 +166,7 @@ class FaceDetector(threading.Thread):
                 faces_detected_since_last_log = 0
                 faces_skipped_since_last_log = 0
         
-        total_time = time.time() - start_time
+        total_time = timeit.default_timer() - start_time
         self.info_logger.info('FaceDetector done, processed ' + str(total_frames_processed) + \
             ' frames at ' + str(float(total_frames_processed) / total_time) + \
             ' frames/second. ' + str(total_frames_skipped) + ' frames were skipped. ' \

@@ -1,9 +1,6 @@
 # Use PiCamera module (camera on Raspberry Pi)
 PICAMERA = False
 
-# Send images over TCP or UDP, default is TCP
-USE_TCP = True
-
 if PICAMERA:
     from picamera.array import PiRGBArray
     from picamera import PiCamera
@@ -15,10 +12,7 @@ import struct
 import time
 import timeit
 import helpers.logger
-if USE_TCP:
-    import tcp.data_transfer
-else:
-    import datagram.data_transfer
+import tcp.data_transfer
 
 # How often the client should print to notify it's alive
 PRINT_INTERVAL = 5.0
@@ -59,34 +53,25 @@ print("JPEG_QUALITY: " + str(JPEG_QUALITY))
 
 
 
-if USE_TCP:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect(TCP_ADDRESS)
-else:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(TCP_ADDRESS)
 
 #
 # Function handle_image
 # Takes an image and sends it over TCP or UDP
 #
-def handle_image(image, datagram_number):
+def handle_image(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     ret, buf = cv2.imencode('.jpeg', gray, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
 
     if ret == True:
         npString = buf.tostring()
-        if USE_TCP:
-            #TCP
-            tcp.data_transfer.send_dataset(sock, npString)
-        else:
-            #UDP
-            datagram_number = datagram.data_transfer.send_dataset(sock, UDP_ADDRESS, npString, datagram_number)
+        #TCP
+        tcp.data_transfer.send_dataset(sock, npString)
     else:
         print("cv2.imencode('.jpeg', gray, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]) failed")
         print("")
-        
-    return datagram_number
 
 #
 # Function handle_print
@@ -111,7 +96,6 @@ time.sleep(0.1)
 # reset vars
 images_handled_since_last_print = 0
 last_print_time = timeit.default_timer()
-datagram_number = 0
 
 print("Client is starting. If nothing more is seen within " + str(PRINT_INTERVAL) + " seconds, the client probably failed to read any images.")
         
@@ -120,7 +104,7 @@ if PICAMERA:
     for frame in camera.capture_continuous(raw_capture, format="rgb", use_video_port=True):
         image = frame.array
         # Run the handle_image function
-        datagram_number = handle_image(image, datagram_number)
+        handle_image(image)
         images_handled_since_last_print += 1
         last_print_time, images_handled_since_last_print = handle_print(last_print_time, images_handled_since_last_print)
         
@@ -134,7 +118,7 @@ else:
         ret, image = cap.read()
         if ret:
             # Run the handle_image function
-            datagram_number = handle_image(image, datagram_number)
+            handle_image(image)
             images_handled_since_last_print += 1
             last_print_time, images_handled_since_last_print = handle_print(last_print_time, images_handled_since_last_print)
             
@@ -147,7 +131,6 @@ else:
                 
     cap.release()
 
-# When everything done
-if USE_TCP:
-    sock.close()
+# Exiting
+sock.close()
 

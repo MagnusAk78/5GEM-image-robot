@@ -1,8 +1,6 @@
 import time
 import socket
 import helpers.logger
-import datagram.image_reader
-import processing.face_detector
 
 #Constants
 

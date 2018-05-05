@@ -3,7 +3,7 @@ import struct
 import math
 import threading
 import Queue
-import time
+import timeit
 
 START_MESSAGE = 'START'
 END_MESSAGE = 'END'
@@ -40,7 +40,7 @@ class DatasetReceiver(threading.Thread):
         
     def reveive_data(self):
         print 'DatasetReceiver reveive_data'
-        start_time = time.time()
+        start_time = timeit.default_timer()
         self.info_logger.info('DatasetReceiver, start_time: ' + str(start_time))
         print('DatasetReceiver, start_time: ' + str(start_time))
         self.statistics_logger.info('Frames_read')
@@ -67,7 +67,7 @@ class DatasetReceiver(threading.Thread):
                     break
                 bytes += new_bytes
             
-            now = time.time()
+            now = timeit.default_timer()
             diff_time = now - time_last_log
             if(diff_time > self.log_interval):
                 print('logging')
@@ -82,7 +82,7 @@ class DatasetReceiver(threading.Thread):
                 time_last_log = now
                 frames_read_since_last_log = 0
                 
-        end_time = time.time()
+        end_time = timeit.default_timer()
         total_time = end_time - start_time
         self.info_logger.info('DatasetReceiver done, received ' + str(total_frames_read) + \
             ' frames at ' + str(float(total_frames_read) / total_time) + ' frames/second')

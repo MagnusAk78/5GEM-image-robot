@@ -1,11 +1,9 @@
 import Queue
-import time
+import timeit
 import socket
-import SocketServer
 import math
 import cv2
 import helpers.logger
-import datagram.image_reader
 import tcp.image_reader
 import processing.face_detector
 import processing.face
@@ -91,13 +89,7 @@ class MyRobotConnection():
         self.faceDetector = processing.face_detector.FaceDetector(self.image_queue, self.face_queue, self.show_image_queue, SHOW_IMAGE_ON_SCREEN, FAKED_DELAY, info_logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
         self.running = True
         self.robot_connected = False
-        # TCP VERSION
         self.imageReader = tcp.image_reader.ImageReader(TCP_ADDRESS, READ_BUFFER_SIZE, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
-        # UDP VERSION
-        #self.imageReader = datagram.image_reader.ImageReader(DATAGRAM_ADDRESS, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
-        # STREAM VERSION
-        #self.imageReader = mjpeg.mjpeg_stream_reader.MjpegStreamReader(STREAM_URL, READ_CHUNK_SIZE, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
-        #latency_logger=helpers.LatencyLogger()
         
     def wait_for_robot_client(self):
         try:
@@ -156,13 +148,13 @@ class MyRobotConnection():
         currentRadianValueY = STARTING_ANGLE_Y
         lastSentValueX = currentRadianValueX
         lastSentValueY = currentRadianValueY
-        lastSentTime = time.time()
+        lastSentTime = timeit.default_timer()
         faces = 0
         facesSkipped = 0
         dataSent = True
         
         while self.running and self.robot_connected:
-            now = time.time()
+            now = timeit.default_timer()
             if dataSent:
                 self.data = self.connection.recv(1024).strip()
             if self.data == '':
