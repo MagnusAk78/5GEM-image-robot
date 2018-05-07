@@ -1,5 +1,5 @@
 # Use PiCamera module (camera on Raspberry Pi)
-PICAMERA = False
+PICAMERA = True
 
 if PICAMERA:
     from picamera.array import PiRGBArray
@@ -24,15 +24,11 @@ FPS = 10
 TIME_BETWEEN_FRAMES = 1.0 / FPS
 JPEG_QUALITY = 75
 
-# TCP
-TCP_HOST = "127.0.0.1"
+#TCP_HOST = "127.0.0.1"
+TCP_HOST = "172.16.0.2"
 TCP_PORT = 3001
 TCP_ADDRESS = (TCP_HOST, TCP_PORT)
 
-# UDP
-UDP_HOST = "127.0.0.1"
-UDP_PORT = 5000
-UDP_ADDRESS = (UDP_HOST, UDP_PORT)
 
 if PICAMERA:
     camera = PiCamera()
@@ -67,7 +63,6 @@ def handle_image(image):
 
     if ret == True:
         npString = buf.tostring()
-        #TCP
         tcp.data_transfer.send_dataset(sock, npString)
     else:
         print("cv2.imencode('.jpeg', gray, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]) failed")
