@@ -1,14 +1,13 @@
 import time
 import socket
 import helpers.logger
+import server_image_processing
 
 #Constants
 
 ADDRESS = ('127.0.0.1', 3000)
 
 LOG_INTERVAL = 10
-
-OK = 'OK'
 
 info_logger = helpers.logger.setup_normal_logger('Fake_Robot')
     
@@ -27,7 +26,7 @@ if __name__ == "__main__":
     while True:
         try:
             # Send data
-            sock.sendall(OK)
+            sock.sendall(server_image_processing.ROBOT_ACK)
             data = sock.recv(1024).strip()
             info_logger.info('received "%s"' % data)
             print 'received "%s"' % data

@@ -53,6 +53,7 @@ ANGLE_MIN_Y = -35 * DEG_TO_RAD_CONV
 ANGLE_MAX_Y = 5 * DEG_TO_RAD_CONV
 STARTING_ANGLE_X =  PI
 STARTING_ANGLE_Y = -15 * DEG_TO_RAD_CONV
+ROBOT_ACK = 'OK'
 
 # Logging
 info_logger = helpers.logger.setup_normal_logger('5GEM_robot_demonstrator_info')
@@ -160,7 +161,7 @@ class MyRobotConnection():
             if self.data == '':
                 self.connection.close()
                 self.robot_connected = False
-            elif(self.data == "OK" or dataSent == False):
+            elif(self.data == ROBOT_ACK or dataSent == False):
                 dataSent = False
                 if(self.face_queue.empty() == False):
                     while(self.face_queue.empty() == False):

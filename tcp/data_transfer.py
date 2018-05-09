@@ -5,6 +5,8 @@ import threading
 import Queue
 import timeit
 
+CLIENT_ACK = 'ACK'
+
 def send_image_data(socket, round_trip_time, image_data):
     dataToSend = struct.pack('f', round_trip_time) + struct.pack('i', len(image_data)) + image_data
     socket.sendall(dataToSend)
@@ -52,16 +54,15 @@ class DatasetReceiver(threading.Thread):
         frames_read_since_last_log = 0    
     
         bytes = ''
-        length_of_next_image = 0
         while self.threadRun and self.client_connected:
-            while len(bytes) <= length_of_next_image + struct.calcsize('fi'):
+            while len(bytes) < struct.calcsize('fi'):
                 bytes += self.get_data()
                 if self.client_connected == False:
                     break
             rtt = struct.unpack('f', bytes[0:4])[0]
             length_of_next_image = struct.unpack('i', bytes[4:8])[0]
             bytes = bytes[8:]
-            while(len(bytes) <= length_of_next_image):
+            while(len(bytes) < length_of_next_image):
                 bytes += self.get_data()
                 if self.client_connected == False:
                     break
@@ -70,6 +71,9 @@ class DatasetReceiver(threading.Thread):
             self.dataset_queue.put(image_data)
             total_frames_read += 1
             frames_read_since_last_log += 1
+            
+            # Send acknowledgement
+            self.connection.sendall(CLIENT_ACK)
             
             now = timeit.default_timer()
             diff_time = now - time_last_log
