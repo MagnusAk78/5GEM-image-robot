@@ -6,13 +6,18 @@ import Queue
 import timeit
 
 CLIENT_ACK = 'ACK'
+MAX_IMAGE_NUMBER = 2147483647
 
-def send_image_data(socket, round_trip_time, image_data):
-    dataToSend = struct.pack('f', round_trip_time) + struct.pack('i', len(image_data)) + image_data
+def send_image_data(socket, previous_round_trip_time, image_number, image_data):
+    dataToSend = struct.pack('f', previous_round_trip_time) + struct.pack('i', image_number) + struct.pack('i', len(image_data)) + image_data
     socket.sendall(dataToSend)
+    if image_number < MAX_IMAGE_NUMBER:
+        return image_number + 1
+    else:
+        return 0
         
 class DatasetReceiver(threading.Thread): 
-    def __init__(self, socket, read_buffer_size, dataset_queue, info_logger, statistics_logger, log_interval): 
+    def __init__(self, socket, read_buffer_size, dataset_queue, info_logger, statistics_logger, latency_logger, log_interval): 
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.sock = socket
@@ -24,12 +29,13 @@ class DatasetReceiver(threading.Thread):
         self.statistics_logger = statistics_logger
         self.info_logger = info_logger
         self.log_interval = log_interval
+        self.latency_logger = latency_logger
         
     def wait_for_image_sending_client(self):
-        print 'DatasetReceiver wait_for_image_sending_client'
+        print 'DatasetReceiver, waiting for image sending client'
         self.sock.listen(1)
         self.connection, client_address = self.sock.accept()
-        print('DatasetReceiver, client connected: ' + client_address[0] + ':' + str(client_address[1]))        
+        print('DatasetReceiver, image sending client connected: ' + client_address[0] + ':' + str(client_address[1]))        
         self.client_connected = True
         
     def stop_thread(self):
@@ -55,13 +61,15 @@ class DatasetReceiver(threading.Thread):
     
         bytes = ''
         while self.threadRun and self.client_connected:
-            while len(bytes) < struct.calcsize('fi'):
+            while len(bytes) < struct.calcsize('fii'):
                 bytes += self.get_data()
                 if self.client_connected == False:
                     break
             rtt = struct.unpack('f', bytes[0:4])[0]
-            length_of_next_image = struct.unpack('i', bytes[4:8])[0]
-            bytes = bytes[8:]
+            self.latency_logger.add_client_latency(rtt)
+            image_number = struct.unpack('i', bytes[4:8])[0]
+            length_of_next_image = struct.unpack('i', bytes[8:12])[0]
+            bytes = bytes[12:]
             while(len(bytes) < length_of_next_image):
                 bytes += self.get_data()
                 if self.client_connected == False:

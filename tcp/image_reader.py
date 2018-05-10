@@ -10,7 +10,7 @@ import tcp.data_transfer
 # log_interval      How long between every statistic log in seconds
 
 class ImageReader(threading.Thread): 
-    def __init__(self, address, read_buffer_size, queue, info_logger, statistics_logger, log_interval): 
+    def __init__(self, address, read_buffer_size, queue, info_logger, statistics_logger, latency_logger, log_interval): 
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.frame_queue = queue
@@ -24,6 +24,7 @@ class ImageReader(threading.Thread):
         # Disable Nagle's algorithm
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.dataset_queue = Queue.Queue()
+        self.latency_logger = latency_logger
         
     def stop_thread(self):
         self.thread_run = False
@@ -31,7 +32,7 @@ class ImageReader(threading.Thread):
     def run(self):
         self.sock.bind(self.socket_address)
         
-        dataset_receiver = tcp.data_transfer.DatasetReceiver(self.sock, self.read_buffer_size, self.dataset_queue, self.info_logger, self.statistics_logger, self.log_interval)
+        dataset_receiver = tcp.data_transfer.DatasetReceiver(self.sock, self.read_buffer_size, self.dataset_queue, self.info_logger, self.statistics_logger, self.latency_logger, self.log_interval)
         dataset_receiver.start()
         
         while self.thread_run:

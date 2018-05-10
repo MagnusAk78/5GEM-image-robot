@@ -13,7 +13,7 @@ import processing.face
 LOG_INTERVAL = 10
 WRITE_IMAGE_INTERVAL = 0
 KEEP_ALIVE_INTERVAL = 1.0
-SHOW_IMAGE_ON_SCREEN = True
+SHOW_IMAGE_ON_SCREEN = False
 FAKED_DELAY = 0.0
 
 LISTEN_ROBOT_CLIENT_ADDRESS = ("", 3000)
@@ -46,8 +46,9 @@ STARTING_ANGLE_Y = -15 * DEG_TO_RAD_CONV
 ROBOT_ACK = 'OK'
 
 # Logging
-info_logger = helpers.logger.setup_normal_logger('5GEM_robot_demonstrator_info')
-statistics_logger = helpers.logger.setup_normal_logger('5GEM_robot_demonstrator_stats')
+info_logger = helpers.logger.setup_normal_logger('server_info_log')
+statistics_logger = helpers.logger.setup_normal_logger('server_statistics_log')
+latency_logger = helpers.logger.LatencyLogging('server_latency_measurements')
 
 # square                Tuple of square (x, y, width, height)
 # screen_width          Screen width in pixels
@@ -73,21 +74,20 @@ class MyRobotConnection():
     def __init__(self, server_socket): 
         self.server_socket = server_socket
         self.connection = None
-        #self.client_address = client_address
         self.image_queue = Queue.Queue()
         self.face_queue = Queue.Queue()
         self.show_image_queue = Queue.Queue()
         self.faceDetector = processing.face_detector.FaceDetector(self.image_queue, self.face_queue, self.show_image_queue, SHOW_IMAGE_ON_SCREEN, FAKED_DELAY, info_logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
         self.running = True
         self.robot_connected = False
-        self.imageReader = tcp.image_reader.ImageReader(TCP_ADDRESS, READ_BUFFER_SIZE, self.image_queue, info_logger, statistics_logger, LOG_INTERVAL)
+        self.imageReader = tcp.image_reader.ImageReader(TCP_ADDRESS, READ_BUFFER_SIZE, self.image_queue, info_logger, statistics_logger, latency_logger, LOG_INTERVAL)
         
     def wait_for_robot_client(self):
         try:
             self.server_socket.listen(1)
-            print "Listening for client . . ."
+            print "Listening for robot . . ."
             self.connection, client_address = self.server_socket.accept()
-            print('Client connected: ' + client_address[0] + ':' + str(client_address[1]))
+            print('Robot connected: ' + client_address[0] + ':' + str(client_address[1]))
             self.robot_connected = True
         except socket.error, exc:
             print('socket.error: %s' % exc)

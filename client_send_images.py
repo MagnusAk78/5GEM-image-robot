@@ -24,8 +24,7 @@ FPS = 10
 TIME_BETWEEN_FRAMES = 1.0 / FPS
 JPEG_QUALITY = 75
 
-#TCP_HOST = "127.0.0.1"
-TCP_HOST = "172.16.0.2"
+TCP_HOST = "127.0.0.1"
 TCP_PORT = 3001
 TCP_ADDRESS = (TCP_HOST, TCP_PORT)
 
@@ -53,9 +52,9 @@ sock.connect(TCP_ADDRESS)
 #
 # Function handle_image
 # Takes an image and sends it over TCP
-# Returns Round Trip Time
+# Returns (Round Trip Time, next_image_number)
 #
-def handle_image(image, previous_rtt):
+def handle_image(image, previous_rtt, image_number):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     ret, buf = cv2.imencode('.jpeg', gray, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
@@ -64,16 +63,16 @@ def handle_image(image, previous_rtt):
         image_data = buf.tostring()
         #TCP
         before_send = timeit.default_timer()
-        tcp.data_transfer.send_image_data(sock, previous_rtt, image_data)
+        next_image_number = tcp.data_transfer.send_image_data(sock, previous_rtt, image_number, image_data)
         data = sock.recv(100).strip()
         if data != tcp.data_transfer.CLIENT_ACK:
             print("SOMETHING IS WRONG, data received: " + data + ", should be: " + tcp.data_transfer.CLIENT_ACK)
         after_receive = timeit.default_timer()
-        return (after_receive - before_send)
+        return (after_receive - before_send, next_image_number)
     else:
         print("cv2.imencode('.jpeg', gray, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]) failed")
         print("")
-        return 0.0
+        return (0.0, image_number)
 
 #
 # Function handle_print
@@ -99,6 +98,7 @@ time.sleep(0.1)
 images_handled_since_last_print = 0
 last_print_time = timeit.default_timer()
 previous_rtt = 0.0
+image_number = 0
 
 print("Client is starting. If nothing more is seen within " + str(PRINT_INTERVAL) + " seconds, the client probably failed to read any images.")
         
@@ -107,7 +107,7 @@ if PICAMERA:
     for frame in camera.capture_continuous(raw_capture, format="rgb", use_video_port=True):
         image = frame.array
         # Run the handle_image function
-        previous_rtt = handle_image(image, previous_rtt)
+        (previous_rtt, image_number) = handle_image(image, previous_rtt, image_number)
         images_handled_since_last_print += 1
         last_print_time, images_handled_since_last_print = handle_print(last_print_time, images_handled_since_last_print)
         
