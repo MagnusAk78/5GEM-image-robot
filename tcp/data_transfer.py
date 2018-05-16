@@ -61,22 +61,22 @@ class DatasetReceiver(threading.Thread):
     
         bytes = ''
         while self.threadRun and self.client_connected:
-            while len(bytes) < struct.calcsize('fii'):
+            while len(bytes) < struct.calcsize('fii') and self.client_connected:
                 bytes += self.get_data()
-                if self.client_connected == False:
-                    break
+            if self.client_connected == False:
+                break
             rtt = struct.unpack('f', bytes[0:4])[0]
-            self.latency_logger.add_client_latency(rtt)
             image_number = struct.unpack('i', bytes[4:8])[0]
+            self.latency_logger.image_received(rtt, image_number)
             length_of_next_image = struct.unpack('i', bytes[8:12])[0]
             bytes = bytes[12:]
-            while(len(bytes) < length_of_next_image):
+            while(len(bytes) < length_of_next_image) and self.client_connected:
                 bytes += self.get_data()
-                if self.client_connected == False:
-                    break
+            if self.client_connected == False:
+                break
             image_data = bytes[:length_of_next_image]
             bytes = bytes[length_of_next_image:]
-            self.dataset_queue.put(image_data)
+            self.dataset_queue.put((image_data, image_number))
             total_frames_read += 1
             frames_read_since_last_log += 1
             

@@ -1,5 +1,5 @@
 # Use PiCamera module (camera on Raspberry Pi)
-PICAMERA = True
+PICAMERA = False
 
 if PICAMERA:
     from picamera.array import PiRGBArray
@@ -97,7 +97,7 @@ time.sleep(0.1)
 # reset vars
 images_handled_since_last_print = 0
 last_print_time = timeit.default_timer()
-previous_rtt = 0.0
+previous_rtt = -1.0
 image_number = 0
 
 print("Client is starting. If nothing more is seen within " + str(PRINT_INTERVAL) + " seconds, the client probably failed to read any images.")
@@ -121,7 +121,7 @@ else:
         ret, image = cap.read()
         if ret:
             # Run the handle_image function
-            previous_rtt = handle_image(image, previous_rtt)
+            previous_rtt, image_number = handle_image(image, previous_rtt, image_number)
             images_handled_since_last_print += 1
             last_print_time, images_handled_since_last_print = handle_print(last_print_time, images_handled_since_last_print)
             

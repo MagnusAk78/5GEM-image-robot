@@ -36,7 +36,8 @@ class ImageReader(threading.Thread):
         dataset_receiver.start()
         
         while self.thread_run:
-            np_string = self.dataset_queue.get()
+            (np_string, image_number) = self.dataset_queue.get()
+            self.latency_logger.image_process_start(image_number)
             #Unpack
             nparr = np.fromstring(np_string, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
@@ -47,7 +48,7 @@ class ImageReader(threading.Thread):
             except:
                 self.info_logger.info('Image corrupt, some other error')
             else:
-                self.frame_queue.put(img)
+                self.frame_queue.put((img, image_number))
             
         # Thread stopped
         dataset_receiver.stop_thread()

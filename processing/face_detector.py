@@ -26,7 +26,7 @@ def transfer_queue(source_queue, target_queue):
 # log_interval           How long between every statistic log in seconds
 # write_image_interval    Minimum time between image written to disk, 0 = no image write
 class FaceDetector(threading.Thread): 
-    def __init__(self, frame_queue, face_queue, show_image_queue, show_image_on_screen, faked_delay, info_logger, log_interval, write_image_interval): 
+    def __init__(self, frame_queue, face_queue, show_image_queue, show_image_on_screen, faked_delay, info_logger, latency_logger, log_interval, write_image_interval): 
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.threadRun = True
@@ -41,6 +41,7 @@ class FaceDetector(threading.Thread):
             self.read_queue = frame_queue
         self.writeQueue = face_queue
         self.info_logger = info_logger
+        self.latency_logger = latency_logger
         self.log_interval = log_interval
         self.write_image_interval = write_image_interval
         
@@ -68,13 +69,13 @@ class FaceDetector(threading.Thread):
             if self.faked_delay > 0:
                 while self.read_queue.empty():
                     if self.faked_delay_queue.empty() == False:
-                        img_now = self.faked_delay_queue.get()
-                        self.buffer_queue.put(img_now)
+                        (img_now, image_number_now) = self.faked_delay_queue.get()
+                        self.buffer_queue.put((img_now, image_number_now))
                         threading.Timer(FAKED_DELAY, transfer_queue, (self.buffer_queue, self.read_queue)).start()
                     else:
                         time.sleep(0.005)
             
-            img = self.read_queue.get()
+            (img, image_number) = self.read_queue.get()
             now = timeit.default_timer()
                    
             #Only process images if the queue is empty
@@ -121,7 +122,6 @@ class FaceDetector(threading.Thread):
                         continue
                         
                 if face_found:
-
                     if self.show_image_on_screen:
                         cv2.rectangle(img, (currentFace.x, currentFace.y), \
                             (currentFace.x + currentFace.w, \
@@ -165,6 +165,8 @@ class FaceDetector(threading.Thread):
                 frames_processed_since_last_log = 0
                 faces_detected_since_last_log = 0
                 faces_skipped_since_last_log = 0
+                
+            self.latency_logger.image_process_end(image_number)
         
         total_time = timeit.default_timer() - start_time
         self.info_logger.info('FaceDetector done, processed ' + str(total_frames_processed) + \

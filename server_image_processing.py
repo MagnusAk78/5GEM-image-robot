@@ -4,6 +4,7 @@ import socket
 import math
 import cv2
 import helpers.logger
+import helpers.base
 import tcp.image_reader
 import processing.face_detector
 import processing.face
@@ -13,7 +14,7 @@ import processing.face
 LOG_INTERVAL = 10
 WRITE_IMAGE_INTERVAL = 0
 KEEP_ALIVE_INTERVAL = 1.0
-SHOW_IMAGE_ON_SCREEN = False
+SHOW_IMAGE_ON_SCREEN = True
 FAKED_DELAY = 0.0
 
 LISTEN_ROBOT_CLIENT_ADDRESS = ("", 3000)
@@ -44,43 +45,20 @@ ANGLE_MAX_Y = 5 * DEG_TO_RAD_CONV
 STARTING_ANGLE_X =  PI
 STARTING_ANGLE_Y = -15 * DEG_TO_RAD_CONV
 ROBOT_ACK = 'OK'
-
-# Logging
-info_logger = helpers.logger.setup_normal_logger('server_info_log')
-statistics_logger = helpers.logger.setup_normal_logger('server_statistics_log')
-latency_logger = helpers.logger.LatencyLogging('server_latency_measurements')
-
-# square                Tuple of square (x, y, width, height)
-# screen_width          Screen width in pixels
-# angle_screen          Total angle in radians over the screen width (float)
-def convert_face_on_screen_to_angle_in_x(face, screen_width, angle_screen, logger):
-    xDiff = float(CENTER_X - face.centerX())
-    diffAngleX = xDiff * angle_screen / IMAGE_WIDTH
-    if diffAngleX > MAXIMUM_ANGLE_MOVEMENT_X:
-        diffAngleX = MAXIMUM_ANGLE_MOVEMENT_X
-    logger.info('xDiff: ' + str(xDiff) + ', diffAngleX (deg): ' + str(diffAngleX * RAD_TO_DEG_CONV) + ' AND diffAngleX (rad): ' + str(diffAngleX))
-    return diffAngleX
     
-def convert_face_on_screen_to_angle_in_y(face, screen_height, angle_screen, logger):
-    yDiff = float(CENTER_Y - face.centerY())
-    diffAngleY = yDiff * angle_screen / IMAGE_HEIGHT
-    if diffAngleY > MAXIMUM_ANGLE_MOVEMENT_Y:
-        diffAngleY = MAXIMUM_ANGLE_MOVEMENT_Y
-    logger.info('yDiff: ' + str(yDiff) + ', diffAngleY (deg): ' + str(diffAngleY * RAD_TO_DEG_CONV) + ' AND diffAngleY (rad): ' + str(diffAngleY))
-    return diffAngleY
+class MyRobotConnection(helpers.base.BaseRunnableClass):
     
-class MyRobotConnection():
-    
-    def __init__(self, server_socket): 
+    def __init__(self, server_socket, info_logger, statistics_logger):
+        helpers.base.BaseRunnableClass.__init__(self, info_logger)
         self.server_socket = server_socket
         self.connection = None
         self.image_queue = Queue.Queue()
         self.face_queue = Queue.Queue()
         self.show_image_queue = Queue.Queue()
-        self.faceDetector = processing.face_detector.FaceDetector(self.image_queue, self.face_queue, self.show_image_queue, SHOW_IMAGE_ON_SCREEN, FAKED_DELAY, info_logger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
-        self.running = True
+        self.latencyLogger = helpers.logger.LatencyLogging('server_latency_measurements')
+        self.faceDetector = processing.face_detector.FaceDetector(self.image_queue, self.face_queue, self.show_image_queue, SHOW_IMAGE_ON_SCREEN, FAKED_DELAY, info_logger, self.latencyLogger, LOG_INTERVAL, WRITE_IMAGE_INTERVAL)
         self.robot_connected = False
-        self.imageReader = tcp.image_reader.ImageReader(TCP_ADDRESS, READ_BUFFER_SIZE, self.image_queue, info_logger, statistics_logger, latency_logger, LOG_INTERVAL)
+        self.imageReader = tcp.image_reader.ImageReader(TCP_ADDRESS, READ_BUFFER_SIZE, self.image_queue, info_logger, statistics_logger, self.latencyLogger, LOG_INTERVAL)
         
     def wait_for_robot_client(self):
         try:
@@ -96,13 +74,33 @@ class MyRobotConnection():
             pass
         except KeyboardInterrupt:
             print('KeyboardInterrupt')
-            self.running = False
+            self.stop_running()
+            
+    # square				Tuple of square (x, y, width, height)
+    # screen_width			Screen width in pixels
+    # angle_screen			Total angle in radians over the screen width (float)
+    def convert_face_on_screen_to_angle_in_x(self, face, screen_width, angle_screen):
+	    xDiff = float(CENTER_X - face.centerX())
+	    diffAngleX = xDiff * angle_screen / IMAGE_WIDTH
+	    if diffAngleX > MAXIMUM_ANGLE_MOVEMENT_X:
+		    diffAngleX = MAXIMUM_ANGLE_MOVEMENT_X
+	    self.log_info('xDiff: ' + str(xDiff) + ', diffAngleX (deg): ' + str(diffAngleX * RAD_TO_DEG_CONV) + ' AND diffAngleX (rad): ' + str(diffAngleX))
+	    return diffAngleX
+	
+    def convert_face_on_screen_to_angle_in_y(self, face, screen_height, angle_screen):
+	    yDiff = float(CENTER_Y - face.centerY())
+	    diffAngleY = yDiff * angle_screen / IMAGE_HEIGHT
+	    if diffAngleY > MAXIMUM_ANGLE_MOVEMENT_Y:
+		    diffAngleY = MAXIMUM_ANGLE_MOVEMENT_Y
+	    self.log_info('yDiff: ' + str(yDiff) + ', diffAngleY (deg): ' + str(diffAngleY * RAD_TO_DEG_CONV) + ' AND diffAngleY (rad): ' + str(diffAngleY))
+	    return diffAngleY
         
     def run(self):
         self.faceDetector.start()
         self.imageReader.start()
+        self.latencyLogger.start()
     
-        while self.running:
+        while self.is_running():
             if not self.robot_connected:
                 self.wait_for_robot_client()
             try:
@@ -115,7 +113,7 @@ class MyRobotConnection():
                 pass
             except KeyboardInterrupt:
                 print('KeyboardInterrupt')
-                self.running = False
+                self.stop_running()
             
         #This is the end!
         print('Closing the server')
@@ -126,6 +124,9 @@ class MyRobotConnection():
         if SHOW_IMAGE_ON_SCREEN:
             cv2.destroyAllWindows()
     
+        self.latencyLogger.stop_thread()
+        self.latencyLogger.join(3.0)
+        print('latencyLogger stopped')
         self.faceDetector.stop_thread()
         self.faceDetector.join(3.0)
         print('faceDetector stopped')
@@ -144,7 +145,7 @@ class MyRobotConnection():
         facesSkipped = 0
         dataSent = True
         
-        while self.running and self.robot_connected:
+        while self.is_running() and self.robot_connected:
             now = timeit.default_timer()
             if dataSent:
                 self.data = self.connection.recv(1024).strip()
@@ -159,8 +160,8 @@ class MyRobotConnection():
                         face = self.face_queue.get()
                     
                     if isinstance(face, processing.face.Face):
-                        currentRadianValueX = currentRadianValueX + convert_face_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE_X, info_logger)
-                        currentRadianValueY = currentRadianValueY - convert_face_on_screen_to_angle_in_y(face, IMAGE_HEIGHT, IMAGE_TOTAL_ANGLE_Y, info_logger)
+                        currentRadianValueX = currentRadianValueX + self.convert_face_on_screen_to_angle_in_x(face, IMAGE_WIDTH, IMAGE_TOTAL_ANGLE_X)
+                        currentRadianValueY = currentRadianValueY - self.convert_face_on_screen_to_angle_in_y(face, IMAGE_HEIGHT, IMAGE_TOTAL_ANGLE_Y)
                     else:
                         print("Something is very wrong")
                         break
@@ -177,7 +178,7 @@ class MyRobotConnection():
                         currentRadianValueY = ANGLE_MAX_Y
                         
                     if((abs(currentRadianValueX - lastSentValueX)> MINIMUM_ANGLE_MOVEMENT_X or abs(currentRadianValueY - lastSentValueY) > MINIMUM_ANGLE_MOVEMENT_Y)):
-                        info_logger.info('Sending value for X = ' + str(currentRadianValueX) + ' AND ' + \
+                        self.log_info('Sending value for X = ' + str(currentRadianValueX) + ' AND ' + \
                                         'sending value for Y = ' + str(currentRadianValueY))
                         self.connection.sendall("(" + str(currentRadianValueX) + "," + str(currentRadianValueY) + ")" + '\n')
                         dataSent = True
@@ -187,7 +188,7 @@ class MyRobotConnection():
                 
                 #If nothing happens we need to send something to keep the connection alive
                 if((now - lastSentTime) > KEEP_ALIVE_INTERVAL):
-                        info_logger.info('Sending values = ' + str(currentRadianValueX) + ' AND ' + str(currentRadianValueY) + ', *** keep alive ***')
+                        self.log_info('Sending values = ' + str(currentRadianValueX) + ' AND ' + str(currentRadianValueY) + ', *** keep alive ***')
                         self.connection.sendall("(" + str(currentRadianValueX) + "," + str(currentRadianValueY) + ")" + '\n')
                         dataSent = True
                         lastSentTime = now
@@ -199,7 +200,6 @@ class MyRobotConnection():
                         img = self.show_image_queue.get()
                     cv2.imshow('Image', img)
                     cv2.waitKey(1)
-            #End of while loop
 
 if __name__ == "__main__":
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -207,5 +207,9 @@ if __name__ == "__main__":
     server_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     server_socket.bind(LISTEN_ROBOT_CLIENT_ADDRESS)
     
-    robot_connection = MyRobotConnection(server_socket)
+    # Logging
+    info_logger = helpers.logger.setup_normal_logger('server_info_log')
+    statistics_logger = helpers.logger.setup_normal_logger('server_statistics_log')
+    
+    robot_connection = MyRobotConnection(server_socket, info_logger, statistics_logger)
     robot_connection.run()
